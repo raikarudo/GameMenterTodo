@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Unity穴埋め練習</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="menuToggle" class="icon-btn" aria-label="問題一覧">☰</button>
+    <h1>Unity穴埋め練習 <span class="sub">C# / MonoBehaviour</span></h1>
+    <div class="progress"><span id="progressText">0 / 0</span><div class="bar"><div id="progressBar"></div></div></div>
+  </header>
+
+  <div class="layout">
+    <nav id="sidebar" class="sidebar"></nav>
+
+    <main class="main">
+      <section class="problem-head">
+        <p id="chapterLabel" class="chapter"></p>
+        <h2 id="problemTitle"></h2>
+        <p id="problemGoal" class="goal"></p>
+        <details class="lesson" open>
+          <summary>この問題で学ぶこと</summary>
+          <div id="problemLesson"></div>
+        </details>
+      </section>
+
+      <section class="editor">
+        <div class="editor-tab"><span id="fileName">Script.cs</span></div>
+        <pre id="code" class="code"></pre>
+      </section>
+
+      <div class="actions">
+        <button id="runBtn" class="btn primary">▶ 実行（判定）</button>
+        <button id="hintBtn" class="btn">ヒント</button>
+        <button id="answerBtn" class="btn">答えを見る</button>
+        <button id="resetBtn" class="btn ghost">リセット</button>
+        <span class="spacer"></span>
+        <button id="prevBtn" class="btn ghost">← 前へ</button>
+        <button id="nextBtn" class="btn ghost">次へ →</button>
+      </div>
+
+      <section class="output">
+        <div class="panel">
+          <div class="panel-title">Console</div>
+          <div id="console" class="console"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Scene</div>
+          <canvas id="scene" width="480" height="240"></canvas>
+        </div>
+      </section>
+
+      <section id="explain" class="explain" hidden>
+        <h3>解説</h3>
+        <div id="explainBody"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="problems.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
