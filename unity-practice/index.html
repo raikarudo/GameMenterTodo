@@ -8,8 +8,8 @@
 </head>
 <body>
   <header class="topbar">
-    <button id="menuToggle" class="icon-btn" aria-label="問題一覧">☰</button>
-    <h1>Unity穴埋め練習 <span class="sub">C# / MonoBehaviour</span></h1>
+    <button id="menuToggle" class="icon-btn" aria-label="レッスン一覧">☰</button>
+    <h1>Unity穴埋め練習 <span class="sub">動かす → 壊す → 言葉にする</span></h1>
     <div class="progress"><span id="progressText">0 / 0</span><div class="bar"><div id="progressBar"></div></div></div>
   </header>
 
@@ -17,50 +17,79 @@
     <nav id="sidebar" class="sidebar"></nav>
 
     <main class="main">
-      <section class="problem-head">
-        <p id="chapterLabel" class="chapter"></p>
-        <h2 id="problemTitle"></h2>
-        <p id="problemGoal" class="goal"></p>
-        <details class="lesson" open>
-          <summary>この問題で学ぶこと</summary>
-          <div id="problemLesson"></div>
-        </details>
+      <section class="lesson-head">
+        <p id="courseLabel" class="course-label"></p>
+        <h2 id="lessonTitle"></h2>
+        <p class="goal">作るもの：<span id="lessonGoal"></span></p>
       </section>
 
-      <section class="editor">
-        <div class="editor-tab"><span id="fileName">Script.cs</span></div>
-        <pre id="code" class="code"></pre>
-      </section>
+      <ol id="steps" class="steps"></ol>
+      <p id="stepGuide" class="step-guide"></p>
 
-      <div class="actions">
-        <button id="runBtn" class="btn primary">▶ 実行（判定）</button>
-        <button id="hintBtn" class="btn">ヒント</button>
-        <button id="answerBtn" class="btn">答えを見る</button>
-        <button id="resetBtn" class="btn ghost">リセット</button>
-        <span class="spacer"></span>
-        <button id="prevBtn" class="btn ghost">← 前へ</button>
-        <button id="nextBtn" class="btn ghost">次へ →</button>
-      </div>
+      <!-- STEP 1, 2: コードと実行結果 -->
+      <section id="playArea">
+        <div id="envArea" class="env" hidden></div>
 
-      <section class="output">
-        <div class="panel">
-          <div class="panel-title">Console</div>
-          <div id="console" class="console"></div>
+        <section class="editor">
+          <div class="editor-tab"><span id="fileName">Script.cs</span></div>
+          <pre id="code" class="code"></pre>
+        </section>
+
+        <div class="actions">
+          <button id="runBtn" class="btn primary">▶ 実行</button>
+          <button id="copyBtn" class="btn">コードをコピー</button>
+          <button id="resetBtn" class="btn ghost" hidden>元に戻す</button>
+          <span class="spacer"></span>
+          <button id="nextStepBtn" class="btn next" hidden></button>
         </div>
-        <div class="panel">
-          <div class="panel-title">Scene</div>
-          <canvas id="scene" width="480" height="240"></canvas>
+
+        <section id="experiments" class="experiments" hidden>
+          <h3>壊して試すお題 <span id="expCount" class="count"></span></h3>
+          <ul id="expList"></ul>
+        </section>
+
+        <section class="output">
+          <div class="panel">
+            <div class="panel-title">Console</div>
+            <div id="console" class="console"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">Scene</div>
+            <canvas id="scene" width="480" height="240"></canvas>
+          </div>
+        </section>
+      </section>
+
+      <!-- STEP 3: 言葉にする -->
+      <section id="verbalArea" class="verbal" hidden>
+        <h3>このコードは、結局何をしていた？</h3>
+        <p id="verbalText" class="verbal-text"></p>
+        <div class="actions">
+          <button id="verbalCheckBtn" class="btn primary">答え合わせ</button>
+          <span id="verbalResult" class="verbal-result"></span>
+        </div>
+        <label class="note-label" for="noteInput">自分の言葉でも説明してみよう（メンターに見せる用・自動保存）</label>
+        <textarea id="noteInput" class="note" rows="4" placeholder="例：毎フレーム、自分の位置に少しずつ右向きの距離を足していたから、右に動き続けていた。"></textarea>
+        <div class="actions">
+          <button id="noteCopyBtn" class="btn">説明をコピー</button>
+          <span class="spacer"></span>
+          <button id="toExplainBtn" class="btn next" hidden>解説を読む →</button>
         </div>
       </section>
 
-      <section id="explain" class="explain" hidden>
-        <h3>解説</h3>
+      <!-- STEP 4: 解説 -->
+      <section id="explainArea" class="explain" hidden>
+        <h3>なぜそう動いたのか</h3>
         <div id="explainBody"></div>
+        <div class="actions">
+          <span class="spacer"></span>
+          <button id="nextLessonBtn" class="btn next">次のレッスンへ →</button>
+        </div>
       </section>
     </main>
   </div>
 
-  <script src="problems.js"></script>
+  <script src="lessons.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,53 +1,38 @@
 # Unity穴埋め練習
 
-Unity をインストールしなくても、ブラウザだけで C# と MonoBehaviour を穴埋め形式で練習できるサイトです。
+Unity をインストールしなくても、ブラウザだけで C# と MonoBehaviour を練習できるサイトです。`index.html` をブラウザで開けば動きます。ビルドもサーバーも不要です。
 
-## 使い方
+## 指導方針
 
-`index.html` をブラウザで開きます。ビルドもサーバーも不要です。GitHub Pages などにそのまま置けます。
+GeekSalon のプログラミング指導方針（programming-teaching）に沿って、体験を先に、原理を後に置くハイブリッド型にしています。原理から入ると、初学者は前提知識（変数・メモリ・オブジェクトなど）の多さで最初の1行すら書けずに止まってしまうからです。
 
-1. コード中の空欄に入力する（一部の問題はプルダウンで選ぶ）
-2. 「▶ 実行」または Enter / Ctrl+Enter で判定する
-3. 間違えると Console に疑似コンパイルエラーが表示される。正解すると Console のログと Scene ビューの動きが再生され、解説が出る
+各レッスンは4ステップで進みます。
 
-進捗はブラウザの localStorage に保存されます。「答えを見る」を使った問題には ✓ が付きません。
+1. **動かす**：完成したコードをコピーして動かす。意味はまだ考えない
+2. **壊して試す**（スクラップ＆ビルド）：コードの一部を書き換えたり消したりして、挙動の変化を見る。書き換える場所は穴埋め形式。お題を1つ以上試すと次へ進める
+3. **言葉にする**：「このコードは結局何をしていたのか」を日本語の穴埋めで説明する。自由記述欄もあり、メンターに見せる用にコピーできる
+4. **解説**：ここで初めて、なぜそう動いたのか（原理）を読む
+
+## 収録内容
+
+- **コース1 動かしてから考える**（7レッスン）：移動、回転、キー入力、Start と Update、Inspector で調整、衝突、生成
+- **コース2 コルーチンと非同期**（4レッスン）：1人でゲームを完成させた受講生向けの次のステップ。コルーチンで待つ、一定間隔で生成、コルーチンを止める、async / await（Unity 6 の Awaitable）
 
 ## 構成
 
 | ファイル | 役割 |
 |---|---|
-| `problems.js` | 章と問題のデータ。問題の追加・修正はここだけで済む |
-| `app.js` | 描画・判定・Console 表示・Scene の疑似再生 |
+| `lessons.js` | コースとレッスンのデータ。コード、書き換えられる場所、挙動のシミュレーション、お題、日本語穴埋め、解説 |
+| `app.js` | ステップの進行、コード表示、実行、Console、Scene の描画ヘルパー、進捗保存 |
 | `style.css` | 見た目（ライト / ダーク両対応） |
 
-## 問題の追加方法
+## レッスンの追加方法
 
-`problems.js` の `PROBLEMS` に次の形のオブジェクトを足します。
+`lessons.js` の `LESSONS` にオブジェクトを足します。書式はファイル先頭のコメントにまとめています。
 
-```js
-{
-  id: "mb-example",          // 一意のID（進捗の保存キー）
-  chapter: "mono",           // CHAPTERS の id
-  title: "問題名",
-  goal: "何をするか",
-  lesson: "事前解説（HTML可）",
-  code: `transform.⟦0⟧(0f, 90f, 0f);`,   // ⟦n⟧ が n 番目の空欄
-  blanks: [
-    {
-      answers: ["Rotate"],                 // 正解候補（空白は無視して比較）
-      hint: "回転させるメソッド",
-      choices: ["Rotate", "Translate"],   // 任意: 指定するとプルダウンになる
-      mistakes: { Translate: "それは移動です" }, // 任意: 誤答ごとのエラー文
-    },
-  ],
-  console: ["-- frame 1", "ログ"],  // 正解時の出力。"--" で始まる行はフレーム注記
-  scene: "rotate",                  // none / idle / move / rotate / jump / collide / coin / spawn / bullet
-  explain: "正解後の解説（HTML可）",
-}
-```
+- `code` の中の `⟦name⟧` が、壊して試すステップで書き換えられる場所になる
+- `slots` にその場所の選択肢（`choice`）か数値（`number`）を定義する。`default` が「動く正解のコード」
+- `simulate(v, env, G)` は書き換えた値 `v` を受け取り、Scene の描画関数と Console のログを返す。`G` には `bg` `cube` `ghost` `bullet` `key` `label` `bigText` `inspector` `overlay` などの描画ヘルパーがある
+- `experiments` の `done(v, env)` が true になる値で実行すると、そのお題が達成になる
 
-## 収録内容（18問）
-
-- 第1章 C#の基礎：変数と型、if、for、配列と List、メソッド、クラス
-- 第2章 MonoBehaviour：スクリプトの骨格、Start/Update、イベント関数の順番、Time.deltaTime、Rotate、Input、[SerializeField]
-- 第3章 物理・衝突・生成：Rigidbody/AddForce/FixedUpdate、OnCollisionEnter、OnTriggerEnter、Instantiate、Destroy
+進捗はブラウザの localStorage に保存されます。
