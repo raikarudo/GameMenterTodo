@@ -26,38 +26,48 @@
       <ol id="steps" class="steps"></ol>
       <p id="stepGuide" class="step-guide"></p>
 
-      <!-- STEP 1, 2: コードと実行結果 -->
+      <!-- STEP 1, 2: コードと実行結果（スマホでは「コード｜結果」のタブで切り替える） -->
       <section id="playArea">
-        <div id="envArea" class="env" hidden></div>
+        <div class="play-tabs" role="tablist" aria-label="表示の切り替え">
+          <button id="tabCode" class="play-tab active" role="tab" data-tab="code">コード</button>
+          <button id="tabResult" class="play-tab" role="tab" data-tab="result">結果<span id="resultDot" class="dot" hidden></span></button>
+        </div>
 
-        <section class="editor">
-          <div class="editor-tab"><span id="fileName">Script.cs</span></div>
-          <pre id="code" class="code"></pre>
-        </section>
+        <div id="codePane" class="pane">
+          <section id="experiments" class="experiments" hidden>
+            <h3>壊して試すお題 <span id="expCount" class="count"></span></h3>
+            <ul id="expList"></ul>
+          </section>
 
-        <div class="actions">
+          <section class="editor">
+            <div class="editor-tab"><span id="fileName">Script.cs</span></div>
+            <pre id="code" class="code"></pre>
+          </section>
+
+          <section id="slotPanel" class="slot-panel" hidden></section>
+          <div id="envArea" class="env" hidden></div>
+        </div>
+
+        <div class="actions play-actions">
+          <button id="resetBtn" class="btn ghost" hidden><span class="full">元に戻す</span><span class="short">戻す</span></button>
+          <button id="copyBtn" class="btn"><span class="full">コードをコピー</span><span class="short">コピー</span></button>
           <button id="runBtn" class="btn primary">▶ 実行</button>
-          <button id="copyBtn" class="btn">コードをコピー</button>
-          <button id="resetBtn" class="btn ghost" hidden>元に戻す</button>
           <span class="spacer"></span>
           <button id="nextStepBtn" class="btn next" hidden></button>
         </div>
 
-        <section id="experiments" class="experiments" hidden>
-          <h3>壊して試すお題 <span id="expCount" class="count"></span></h3>
-          <ul id="expList"></ul>
-        </section>
-
-        <section class="output">
-          <div class="panel">
-            <div class="panel-title">Console</div>
-            <div id="console" class="console"></div>
-          </div>
-          <div class="panel">
-            <div class="panel-title">Scene</div>
-            <canvas id="scene" width="480" height="240"></canvas>
-          </div>
-        </section>
+        <div id="resultPane" class="pane">
+          <section class="output">
+            <div class="panel">
+              <div class="panel-title">Scene</div>
+              <canvas id="scene" width="480" height="240"></canvas>
+            </div>
+            <div class="panel">
+              <div class="panel-title">Console</div>
+              <div id="console" class="console"></div>
+            </div>
+          </section>
+        </div>
       </section>
 
       <!-- STEP 3: 言葉にする -->
