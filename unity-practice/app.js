@@ -118,7 +118,7 @@
       li.appendChild(btn);
       el.steps.appendChild(li);
     });
-    el.stepGuide.textContent = STEPS[step].guide;
+    el.stepGuide.textContent = (lesson().guides || {})[step] || STEPS[step].guide;
   }
 
   // ───────── コード表示 ─────────
@@ -316,6 +316,7 @@
     el.verbalArea.hidden = step !== 2;
     el.explainArea.hidden = step !== 3;
     el.resetBtn.hidden = step !== 1;
+    el.copyBtn.hidden = l.copyable === false;
     el.runBtn.innerHTML = step === 0 ? '▶ <span class="full">そのまま</span>実行' : '▶ <span class="full">書き換えて</span>実行';
     document.body.classList.toggle("in-play", step <= 1);
     setTab("code");
@@ -514,6 +515,22 @@
       ctx.strokeStyle = cssVar("--coin-edge");
       ctx.lineWidth = 2;
       ctx.stroke();
+      ctx.restore();
+    },
+    // ステージの外（何もない空間）を暗く塗る
+    voidOutside(left, right) {
+      const l = sx(left), r = sx(right);
+      if (l > 0) box(0, 0, l, H, cssVar("--void"));
+      if (r < W) box(r, 0, W - r, H, cssVar("--void"));
+    },
+    // Game ビューのガイドのように、画面中央の Dead Zone を破線で示す
+    deadZone(width) {
+      const w = width * U;
+      ctx.save();
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = cssVar("--accent");
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(W / 2 - w / 2 + 0.5, 30.5, Math.max(1, w), GROUND - 40);
       ctx.restore();
     },
     ghost(x, y) {

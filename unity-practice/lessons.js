@@ -301,7 +301,108 @@ public class CameraFollow : MonoBehaviour
     explain: `
 <p><code>[SerializeField] Transform target;</code> と書くと、Inspector に Target 欄ができます。ここに Hierarchy から Player をドラッグして初めて、target がプレイヤーを指します。入れ忘れると UnassignedReferenceException（中身が空のまま使った、というエラー）になります。初学者が最もよく出会うエラーなので、出たら「Inspector の欄が None になっていないか」を最初に確認しましょう。</p>
 <p>Update はスクリプトごとに呼ばれる順番が決まっていません。カメラの Update がプレイヤーより先に呼ばれると、カメラは「動く前の位置」に合わせてしまい、画面がガタつきます。LateUpdate はすべての Update の後に呼ばれるので、カメラの処理に向いています。</p>
-<p>実際の開発では、Cinemachine というパッケージでカメラを制御することも多いです。仕組みを理解してから使うと、設定の意味がわかりやすくなります。</p>`,
+<p>実際の開発では、Cinemachine というパッケージでカメラを制御することが多いです。次のレッスンで、同じ追従を Cinemachine で作ります。自分で書いた仕組みを知っておくと、Cinemachine の設定の意味がわかりやすくなります。</p>`,
+  },
+  {
+    id: "cinemachine",
+    course: "basic",
+    title: "Cinemachine で追従させる",
+    goal: "コードを書かずに、なめらかに追いかけてステージの端で止まるカメラ",
+    fileName: "Inspector（Cinemachine 3）",
+    copyable: false,
+    guides: {
+      0: "Cinemachine はコードを書かずに、Inspector の設定でカメラを動かす。まずはこの設定のまま ▶ 実行 して、前のレッスンの手書きカメラと動きを比べてみよう。Unity では Package Manager で Cinemachine を入れ、GameObject → Cinemachine → Cinemachine Camera で作る。",
+      1: "Inspector の値を書き換えて、わざと壊してみよう。前のレッスンの手書きカメラだと、同じことをするのに何行必要になりそうか考えながら試すとよい。",
+    },
+    code: `// Hierarchy と Inspector の設定（コードは書かない）
+
+Main Camera
+  Cinemachine Brain ............ ⟦brain⟧
+
+CM Camera    [CinemachineCamera]
+  Tracking Target .............. ⟦target⟧
+  Position Control ............. Position Composer
+    Damping X .................. ⟦damping⟧
+    Dead Zone Width ............ ⟦deadzone⟧
+  Extensions
+    Cinemachine Confiner 3D .... ⟦confiner⟧
+
+// Confiner の Bounding Volume には、ステージ全体を囲む Box Collider を指定してある`,
+    slots: {
+      brain: { label: "Main Camera の Cinemachine Brain", type: "choice", options: ["付いている", REMOVE("（付け忘れ）")], default: "付いている" },
+      target: { label: "Tracking Target", type: "choice", options: ["Player", "None"], default: "Player" },
+      damping: { label: "Damping X（秒）", type: "number", default: 1 },
+      deadzone: { label: "Dead Zone Width（画面幅に対する割合）", type: "number", default: 0.2 },
+      confiner: { label: "Confiner 3D", type: "choice", options: ["追加済み", REMOVE("（追加しない）")], default: "追加済み" },
+    },
+    simulate(v, env, G) {
+      const dur = 8, dt = 1 / FPS;
+      const halfView = 240 / 36; // 画面の半分の幅（ユニット）
+      const stage = [-8, 20];    // ステージの範囲。外側は何もない空間
+      const px = (t) => Math.min(17, -5 + Math.max(0, t - 0.4) * 3.2);
+      const dz = Math.max(0, Math.min(1, v.deadzone)) * halfView * 2;
+      const damping = Math.max(0, v.damping);
+      const active = v.brain && v.target === "Player";
+      const cams = [];
+      let cam = 0;
+      // 開始時はプレイヤーを画面中央に置いた状態から始まる
+      if (active) cam = v.confiner ? Math.max(stage[0] + halfView, Math.min(stage[1] - halfView, px(0))) : px(0);
+      for (let f = 0; f <= dur * FPS; f++) {
+        const p = px(f * dt);
+        if (active) {
+          let desired = cam;
+          if (p > cam + dz / 2) desired = p - dz / 2;
+          else if (p < cam - dz / 2) desired = p + dz / 2;
+          cam = damping === 0 ? desired : cam + (desired - cam) * (1 - Math.exp((-dt * 3) / damping));
+          if (v.confiner) cam = Math.max(stage[0] + halfView, Math.min(stage[1] - halfView, cam));
+        }
+        cams.push(cam);
+      }
+      const logs = [];
+      if (!v.brain) logs.push([0.5, "Main Camera が動かない。CinemachineCamera はただの設定で、実際にカメラを動かすのは Brain の仕事", "warn"]);
+      else if (v.target === "None") logs.push([0.5, "エラーは出ないが、カメラはプレイヤーを追いかけない", "warn"]);
+      else {
+        logs.push([5.5, `プレイヤーがステージの右端に着いた  カメラ x = ${G.fmt(cams[Math.floor(5.5 * FPS)])}`]);
+        if (!v.confiner) logs.push([5.6, "ステージの外の何もない空間が映っている", "warn"]);
+      }
+      return {
+        duration: dur,
+        draw(t) {
+          const i = Math.min(cams.length - 1, Math.floor(t * FPS));
+          G.camera(cams[i]);
+          G.bg();
+          [-2, 3, 8, 13].forEach((x) => G.coin(x, 0.5));
+          G.player(px(t), 0);
+          G.voidOutside(stage[0], stage[1]);
+          if (active) G.deadZone(dz);
+          G.label(`camera.x = ${G.fmt(cams[i])}`);
+          G.caption(active ? "破線 = Dead Zone" : "");
+        },
+        logs,
+      };
+    },
+    experiments: [
+      { text: "Damping を 0 にしたら？ 3 にしたら？", done: (v) => v.damping !== 1 },
+      { text: "Dead Zone Width を 0 や 0.5 にして、カメラが動き出すタイミングを比べよう", done: (v) => v.deadzone !== 0.2 },
+      { text: "Confiner を外して、ステージの端まで歩かせてみよう", done: (v) => v.confiner === "" },
+      { text: "Tracking Target を None にしたら？ 前のレッスンの手書きカメラとの違いは？", done: (v) => v.target === "None" },
+      { text: "Main Camera の Cinemachine Brain を付け忘れたら？", done: (v) => v.brain === "" },
+    ],
+    verbalize: {
+      text: "Cinemachine では、カメラの動きを ⟦0⟧ で決める。Main Camera の Cinemachine Brain が、⟦1⟧。Damping を大きくすると ⟦2⟧、Confiner を付けると ⟦3⟧。",
+      blanks: [
+        { choices: ["Inspector の設定", "Update に書いたコード"], answers: ["Inspector の設定"] },
+        { choices: ["CinemachineCamera の設定どおりに本物のカメラを動かす", "プレイヤーを動かす"], answers: ["CinemachineCamera の設定どおりに本物のカメラを動かす"] },
+        { choices: ["ゆっくり遅れて追いかけ", "速く追いかけ"], answers: ["ゆっくり遅れて追いかけ"] },
+        { choices: ["ステージの外が映らないようにカメラが止まる", "プレイヤーがステージから出られなくなる"], answers: ["ステージの外が映らないようにカメラが止まる"] },
+      ],
+    },
+    explain: `
+<p>Cinemachine は Unity 公式のカメラ制御パッケージです。CinemachineCamera は「カメラをこう動かしたい」という設定の入れ物で、それ自体は映像を映しません。Main Camera に付いた Cinemachine Brain が、いちばん優先度の高い CinemachineCamera の設定を読んで、本物のカメラを動かします。Brain がないと何も起きません（GameObject → Cinemachine → Cinemachine Camera で作ると自動で付きます）。</p>
+<p>前のレッスンの手書きカメラは「毎フレーム プレイヤーの位置 + offset に置く」だけでした。なめらかに遅れて追いかける（Damping）、少し動いただけではカメラを動かさない（Dead Zone）、ステージの外を映さない（Confiner）を自分で書くと、それぞれ数十行のコードになります。Cinemachine なら設定だけで済みます。</p>
+<p>Tracking Target が None のとき、手書きカメラはエラーを出しましたが、Cinemachine はエラーを出さずに止まるだけです。「カメラが動かない」ときは、まず Target と Brain を確認しましょう。</p>
+<p>コードから操作することもできます。たとえば復活したプレイヤーを追いかけ直すときは <code>using Unity.Cinemachine;</code> を書いて <code>cmCamera.Follow = newPlayer;</code> とします。CinemachineCamera を複数置いて Priority を切り替えると、ボス戦やイベントシーンでカメラを切り替えられます。</p>
+<p>注意：Cinemachine 3（Unity 6 向け）で名前が変わりました。古い記事の <code>CinemachineVirtualCamera</code> は <code>CinemachineCamera</code>、名前空間の <code>Cinemachine</code> は <code>Unity.Cinemachine</code> です。ネットで調べるときはバージョンに注意してください。</p>`,
   },
   {
     id: "coin",
