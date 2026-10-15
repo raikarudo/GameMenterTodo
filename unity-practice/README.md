@@ -20,7 +20,7 @@ GeekSalon のプログラミング指導方針（programming-teaching）に沿�
 
 「壊して試す」では、コードの書き換えに加えて、Inspector の欄の入れ忘れ、Is Trigger、Rigidbody の付け忘れ、Build Settings 未登録、Unity 6 の Active Input Handling、通信状態など、初学者が実際につまずく設定も変えられる。Console には Unity が実際に出すエラー文を表示する。
 
-Cinemachine のレッスンだけは、コードの代わりに Inspector の設定（Brain、Tracking Target、Damping、Dead Zone、Confiner）を穴埋めにしている。実際の開発でもコードはほとんど書かないため。
+Cinemachine のレッスンだけは、コードの代わりに Unity の Hierarchy と Inspector を模した画面を表示し、その設定（Brain、Tracking Target、Damping、Dead Zone、Confiner）を書き換える。実際の開発でもコードはほとんど書かないため。オブジェクトの切り替え、数値欄の編集、Object 欄の選択、Remove Component / Add Component ができる。レッスンに `inspector` を定義すると、この表示になる。
 
 ## スマホ対応
 

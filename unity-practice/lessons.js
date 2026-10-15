@@ -308,11 +308,91 @@ public class CameraFollow : MonoBehaviour
     course: "basic",
     title: "Cinemachine で追従させる",
     goal: "コードを書かずに、なめらかに追いかけてステージの端で止まるカメラ",
-    fileName: "Inspector（Cinemachine 3）",
+    fileName: "Hierarchy / Inspector",
     copyable: false,
+    // Unity の Hierarchy と Inspector を模した画面で表示する（code は使わない）
+    // field: [ラベル, 種類, 値]。値に { slot } を渡すと「壊して試す」で書き換えられる
+    // component.slot: そのコンポーネントの有無をスロットで切り替える（Remove / Add Component）
+    inspector: {
+      selected: "CM Camera",
+      objects: {
+        "Main Camera": {
+          tag: "MainCamera",
+          components: [
+            { name: "Transform", icon: "transform", collapsed: true },
+            { name: "Camera", icon: "camera", collapsed: true },
+            { name: "Audio Listener", icon: "audio", collapsed: true },
+            {
+              name: "Cinemachine Brain", icon: "cm", slot: "brain",
+              fields: [
+                ["Show Debug Text", "check", false],
+                ["Update Method", "enum", "Smart Update"],
+                ["Default Blend", "enum", "Ease In Out   2 s"],
+              ],
+            },
+          ],
+        },
+        "CM Camera": {
+          components: [
+            { name: "Transform", icon: "transform", collapsed: true },
+            {
+              name: "Cinemachine Camera", icon: "cm",
+              fields: [
+                ["Status: Live", "header"],
+                ["Priority", "num", 0],
+                ["Tracking Target", "object", { slot: "target", type: "Transform" }],
+                ["Look At Target", "object", "None (Transform)"],
+                ["Position Control", "enum", "Position Composer"],
+                ["Rotation Control", "enum", "None"],
+              ],
+            },
+            {
+              name: "Cinemachine Position Composer", icon: "cm",
+              fields: [
+                ["Camera Distance", "num", 10],
+                ["Damping", "vec", [{ slot: "damping" }, 0.5, 1]],
+                ["Composition", "header"],
+                ["Screen Position", "vec2", [0, 0]],
+                ["Dead Zone", "check", true],
+                ["Size", "vec2", [{ slot: "deadzone" }, 0.2], 1],
+              ],
+            },
+            {
+              name: "Cinemachine Confiner 3D", icon: "cm", slot: "confiner",
+              fields: [
+                ["Bounding Volume", "object", "Stage Bounds (Box Collider)"],
+                ["Slowing Distance", "num", 0],
+              ],
+            },
+          ],
+        },
+        "Player": {
+          tag: "Player",
+          components: [
+            { name: "Transform", icon: "transform", collapsed: true },
+            { name: "Box Collider", icon: "collider", collapsed: true },
+            { name: "Rigidbody", icon: "rigidbody", collapsed: true },
+            { name: "Player Move (Script)", icon: "script", collapsed: true },
+          ],
+        },
+        "Stage Bounds": {
+          components: [
+            { name: "Transform", icon: "transform", collapsed: true },
+            {
+              name: "Box Collider", icon: "collider",
+              fields: [
+                ["Is Trigger", "check", true],
+                ["Center", "vec", [6, 3, 0]],
+                ["Size", "vec", [28, 12, 20]],
+              ],
+            },
+          ],
+        },
+      },
+    },
     guides: {
       0: "Cinemachine はコードを書かずに、Inspector の設定でカメラを動かす。まずはこの設定のまま ▶ 実行 して、前のレッスンの手書きカメラと動きを比べてみよう。Unity では Package Manager で Cinemachine を入れ、GameObject → Cinemachine → Cinemachine Camera で作る。",
-      1: "Inspector の値を書き換えて、わざと壊してみよう。前のレッスンの手書きカメラだと、同じことをするのに何行必要になりそうか考えながら試すとよい。",
+      1: "Hierarchy でオブジェクトを選び、Inspector の値を書き換えたりコンポーネントを外したりして、わざと壊してみよう。紫の枠が書き換えられる場所。手書きカメラだと同じことに何行必要になりそうか、考えながら試すとよい。",
     },
     code: `// Hierarchy と Inspector の設定（コードは書かない）
 
@@ -332,7 +412,7 @@ CM Camera    [CinemachineCamera]
       brain: { label: "Main Camera の Cinemachine Brain", type: "choice", options: ["付いている", REMOVE("（付け忘れ）")], default: "付いている" },
       target: { label: "Tracking Target", type: "choice", options: ["Player", "None"], default: "Player" },
       damping: { label: "Damping X（秒）", type: "number", default: 1 },
-      deadzone: { label: "Dead Zone Width（画面幅に対する割合）", type: "number", default: 0.2 },
+      deadzone: { label: "Dead Zone Size X（画面幅に対する割合）", type: "number", default: 0.2 },
       confiner: { label: "Confiner 3D", type: "choice", options: ["追加済み", REMOVE("（追加しない）")], default: "追加済み" },
     },
     simulate(v, env, G) {
@@ -382,11 +462,11 @@ CM Camera    [CinemachineCamera]
       };
     },
     experiments: [
-      { text: "Damping を 0 にしたら？ 3 にしたら？", done: (v) => v.damping !== 1 },
-      { text: "Dead Zone Width を 0 や 0.5 にして、カメラが動き出すタイミングを比べよう", done: (v) => v.deadzone !== 0.2 },
-      { text: "Confiner を外して、ステージの端まで歩かせてみよう", done: (v) => v.confiner === "" },
+      { text: "Position Composer の Damping X を 0 にしたら？ 3 にしたら？", done: (v) => v.damping !== 1 },
+      { text: "Dead Zone の Size X を 0 や 0.5 にして、カメラが動き出すタイミングを比べよう", done: (v) => v.deadzone !== 0.2 },
+      { text: "CM Camera の Confiner 3D を Remove Component して、ステージの端まで歩かせてみよう", done: (v) => v.confiner === "" },
       { text: "Tracking Target を None にしたら？ 前のレッスンの手書きカメラとの違いは？", done: (v) => v.target === "None" },
-      { text: "Main Camera の Cinemachine Brain を付け忘れたら？", done: (v) => v.brain === "" },
+      { text: "Main Camera を選んで、Cinemachine Brain を Remove Component したら？", done: (v) => v.brain === "" },
     ],
     verbalize: {
       text: "Cinemachine では、カメラの動きを ⟦0⟧ で決める。Main Camera の Cinemachine Brain が、⟦1⟧。Damping を大きくすると ⟦2⟧、Confiner を付けると ⟦3⟧。",

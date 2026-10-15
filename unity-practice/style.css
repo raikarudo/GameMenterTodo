@@ -38,6 +38,17 @@
   --ground-text: #ffffff;
   --panel-bg: rgba(255, 255, 255, .95);
   --void: #2b2f36;
+  /* Unity エディタ（ダークテーマ）の色。どちらのテーマでも同じ見た目にする */
+  --u-bg: #383838;
+  --u-panel: #3c3c3c;
+  --u-head: #3e3e3e;
+  --u-line: #232323;
+  --u-text: #d2d2d2;
+  --u-muted: #9a9a9a;
+  --u-field: #2a2a2a;
+  --u-field-line: #1f1f1f;
+  --u-select: #2c5d87;
+  --u-check: #4b8ed1;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -275,6 +286,85 @@ select.slot { padding: 0 2px; cursor: pointer; }
   .spacer { display: none; }
 }
 
+/* ── Unity の Hierarchy / Inspector 風の表示 ── */
+.unity {
+  display: grid; grid-template-columns: 190px minmax(0, 1fr);
+  background: var(--u-bg); color: var(--u-text);
+  font: 12px/1.4 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", sans-serif;
+  color-scheme: dark;
+}
+.unity[hidden] { display: none; }
+.u-title { background: var(--u-head); border-bottom: 1px solid var(--u-line); padding: 5px 10px; font-weight: 600; font-size: 12px; }
+.u-hier { border-right: 1px solid var(--u-line); background: var(--u-panel); min-width: 0; }
+.u-scene { padding: 4px 8px; color: var(--u-muted); }
+.u-hlist { display: flex; flex-direction: column; padding-bottom: 8px; }
+.u-hitem {
+  display: flex; align-items: center; gap: 6px; text-align: left;
+  font: inherit; color: var(--u-text); background: none; border: 0;
+  padding: 3px 8px 3px 22px; cursor: pointer;
+}
+.u-hitem:hover { background: rgba(255, 255, 255, .06); }
+.u-hitem.selected { background: var(--u-select); color: #fff; }
+.u-hitem:focus-visible, .u-remove:focus-visible, .u-addopt:focus-visible { outline: 2px solid var(--u-check); outline-offset: -2px; }
+.u-cube { color: #8fb8e8; font-size: 12px; }
+.u-cube.big { font-size: 20px; line-height: 1; }
+.u-insp { min-width: 0; padding-bottom: 10px; }
+.u-objhead { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px; }
+.u-name { flex: 1; min-width: 0; }
+.u-static { color: var(--u-muted); font-size: 11px; }
+.u-row { display: flex; align-items: center; gap: 6px; padding: 2px 10px 2px 26px; min-height: 22px; }
+.u-taglayer { padding-left: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--u-line); }
+.u-label { flex: 0 0 40%; min-width: 0; color: var(--u-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.u-label.u-layer { flex: 0 0 auto; margin-left: 6px; }
+.u-subheader { color: var(--u-text); font-weight: 600; padding-top: 6px; }
+.u-field {
+  flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 4px;
+  background: var(--u-field); border: 1px solid var(--u-field-line); border-radius: 3px;
+  color: var(--u-text); font: inherit; padding: 1px 5px; min-height: 18px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.u-enum::after { content: "▾"; margin-left: auto; color: var(--u-muted); padding-left: 6px; }
+.u-num { flex: 1 1 0; }
+.u-vec { flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; }
+.u-axis { color: var(--u-muted); font-size: 11px; }
+.u-object { position: relative; padding-right: 20px; }
+.u-objwrap { flex: 1; min-width: 0; position: relative; display: flex; }
+.u-objwrap .u-object { width: 100%; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.u-picker { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); color: var(--u-muted); pointer-events: none; }
+.u-oicon { color: #8fb8e8; }
+.u-check {
+  display: inline-grid; place-items: center; width: 14px; height: 14px; flex: none;
+  border: 1px solid var(--u-field-line); background: var(--u-field); border-radius: 2px;
+  font-size: 10px; color: #fff;
+}
+.u-check.on { background: var(--u-check); border-color: var(--u-check); }
+.u-comp { border-bottom: 1px solid var(--u-line); }
+.u-comp-head { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--u-head); border-top: 1px solid #4a4a4a; }
+.u-fold { width: 10px; color: var(--u-muted); }
+.u-icon { min-width: 16px; text-align: center; font-size: 11px; color: #9cc3ef; }
+.u-icon-cm { background: #c0392b; color: #fff; border-radius: 3px; font-size: 8px; font-weight: 700; padding: 1px 2px; }
+.u-icon-script { color: #9ccc65; font-weight: 700; }
+.u-comp-name { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.u-kebab { color: var(--u-muted); }
+.u-body { padding: 4px 0 6px; }
+.u-remove {
+  font: inherit; font-size: 11px; cursor: pointer;
+  color: var(--u-text); background: #4a4a4a; border: 1px solid var(--u-line); border-radius: 3px; padding: 1px 6px;
+}
+.u-remove:hover { background: #8a3a32; }
+.u-add { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 10px 4px; }
+.u-addbtn { padding: 3px 40px; background: #585858; border: 1px solid var(--u-line); border-radius: 3px; color: var(--u-muted); }
+.u-addbtn.active { color: var(--u-text); }
+.u-addopt {
+  font: inherit; cursor: pointer; width: min(260px, 100%);
+  color: var(--u-text); background: var(--u-field); border: 1px dashed var(--slot); border-radius: 3px; padding: 4px 8px; text-align: left;
+}
+/* 書き換えられる場所は紫の枠（コード表示と同じ合図） */
+.u-slot, .u-slot-static { border: 1px dashed var(--slot); }
+.u-slot.changed { border-style: solid; background: color-mix(in srgb, var(--slot) 28%, var(--u-field)); }
+input.u-slot { width: 100%; outline: none; }
+input.u-slot:focus, select.u-slot:focus { border-style: solid; box-shadow: 0 0 0 1px var(--slot); }
+
 /* ── スマホ用の部品（PCでは隠す） ── */
 .play-tabs { display: none; }
 .short { display: none; }
@@ -337,6 +427,17 @@ select.slot { padding: 0 2px; cursor: pointer; }
   .play-actions .spacer { display: none; }
 
   .code { font-size: 12.5px; padding: 12px; }
+
+  /* Unity 風表示：Hierarchy は上に横並び、入力欄は 16px（iOS の自動拡大を防ぐ） */
+  .unity { grid-template-columns: minmax(0, 1fr); font-size: 13px; }
+  .u-hier { border-right: 0; border-bottom: 1px solid var(--u-line); }
+  .u-scene { display: none; }
+  .u-hlist { flex-direction: row; flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+  .u-hitem { padding: 6px 10px; border-radius: 4px; background: var(--u-field); }
+  .u-row { padding-left: 14px; min-height: 30px; }
+  .u-label { flex-basis: 38%; }
+  .u-slot { font-size: 16px; min-height: 28px; }
+  .u-remove { padding: 4px 8px; }
   .slot-chip { padding: 1px 5px; }
 
   /* 書き換えパネル */

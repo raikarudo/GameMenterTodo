@@ -19,7 +19,7 @@
     "steps", "stepGuide", "playArea", "envArea", "fileName", "code", "runBtn", "copyBtn", "resetBtn",
     "nextStepBtn", "experiments", "expCount", "expList", "console", "scene", "verbalArea", "verbalText",
     "verbalCheckBtn", "verbalResult", "noteInput", "noteCopyBtn", "toExplainBtn", "explainArea",
-    "explainBody", "nextLessonBtn", "tabCode", "tabResult", "resultDot", "slotPanel",
+    "explainBody", "nextLessonBtn", "tabCode", "tabResult", "resultDot", "slotPanel", "unityView",
   ].map((id) => [id, $(id)]));
 
   // ───────── 保存（使えない環境でも動くように try/catch） ─────────
@@ -134,6 +134,14 @@
 
   function renderCode() {
     const l = lesson(), s = state();
+    el.code.hidden = !!l.inspector;
+    el.unityView.hidden = !l.inspector;
+    if (l.inspector) {
+      el.slotPanel.hidden = true;
+      el.slotPanel.innerHTML = "";
+      renderUnity();
+      return;
+    }
     const editable = step === 1;
     const mobile = isMobile();
     const src = mobile ? l.code.replace(/^((?: {4})+)/gm, (m) => " ".repeat(m.length / 2)) : l.code;
@@ -195,6 +203,112 @@
       if (!field) return;
       field.scrollIntoView({ behavior: "smooth", block: "center" });
       field.focus({ preventScroll: true });
+    }));
+  }
+
+
+  // ───────── Unity の Hierarchy / Inspector を模した表示 ─────────
+  const ICONS = { transform: "✥", camera: "◉", audio: "♪", cm: "CM", collider: "▢", rigidbody: "◆", script: "#" };
+  const selectedObject = {};
+
+  function renderUnity() {
+    const l = lesson(), s = state(), spec = l.inspector;
+    const editable = step === 1;
+    const sel = selectedObject[l.id] || spec.selected;
+    const obj = spec.objects[sel];
+    const val = (name) => (editable ? s.values[name] : l.slots[name].default);
+    const isSlotChanged = (name) => editable && String(s.values[name]) !== String(l.slots[name].default);
+
+    const numField = (v) => {
+      if (v && typeof v === "object") {
+        const name = v.slot;
+        return editable
+          ? `<input class="u-field u-num u-slot${isSlotChanged(name) ? " changed" : ""}" id="slot-${name}" data-slot="${name}" value="${esc(val(name))}" inputmode="decimal" autocomplete="off" aria-label="${esc(l.slots[name].label)}">`
+          : `<span class="u-field u-num u-slot-static">${esc(val(name))}</span>`;
+      }
+      return `<span class="u-field u-num">${esc(v)}</span>`;
+    };
+    const fieldHtml = ([label, type, value, indent]) => {
+      const lab = `<span class="u-label" style="padding-left:${(indent || 0) * 14}px">${esc(label)}</span>`;
+      switch (type) {
+        case "header": return `<div class="u-row u-subheader">${esc(label)}</div>`;
+        case "check": return `<div class="u-row">${lab}<span class="u-check${value ? " on" : ""}">${value ? "✓" : ""}</span></div>`;
+        case "enum": return `<div class="u-row">${lab}<span class="u-field u-enum">${esc(value)}</span></div>`;
+        case "num": return `<div class="u-row">${lab}${numField(value)}</div>`;
+        case "vec":
+        case "vec2": {
+          const axes = type === "vec" ? ["X", "Y", "Z"] : ["X", "Y"];
+          return `<div class="u-row">${lab}<span class="u-vec">${axes.map((a, i) => `<span class="u-axis">${a}</span>${numField(value[i])}`).join("")}</span></div>`;
+        }
+        case "object": {
+          if (value && typeof value === "object") {
+            const name = value.slot, cur = val(name);
+            const text = cur === "None" ? `None (${value.type})` : `${cur} (${value.type})`;
+            if (!editable) return `<div class="u-row">${lab}<span class="u-field u-object u-slot-static"><span class="u-oicon">${cur === "None" ? "" : "✥"}</span>${esc(text)}<span class="u-picker">⊙</span></span></div>`;
+            const opts = l.slots[name].options.map((o) => `<option value="${esc(optValue(o))}"${String(optValue(o)) === String(cur) ? " selected" : ""}>${esc(optValue(o) === "None" ? `None (${value.type})` : `${optValue(o)} (${value.type})`)}</option>`).join("");
+            return `<div class="u-row">${lab}<span class="u-objwrap"><select class="u-field u-object u-slot${isSlotChanged(name) ? " changed" : ""}" id="slot-${name}" data-slot="${name}" aria-label="${esc(l.slots[name].label)}">${opts}</select><span class="u-picker">⊙</span></span></div>`;
+          }
+          return `<div class="u-row">${lab}<span class="u-field u-object"><span class="u-oicon">${value.startsWith("None") ? "" : "▢"}</span>${esc(value)}<span class="u-picker">⊙</span></span></div>`;
+        }
+        default: return `<div class="u-row">${lab}<span class="u-field">${esc(value)}</span></div>`;
+      }
+    };
+
+    const removed = [];
+    const comps = obj.components.map((c) => {
+      if (c.slot && !val(c.slot)) { removed.push(c); return ""; }
+      const removable = editable && c.slot;
+      const body = c.collapsed ? "" : `<div class="u-body">${(c.fields || []).map(fieldHtml).join("")}</div>`;
+      return `<div class="u-comp${removable ? " u-removable" : ""}">
+        <div class="u-comp-head"><span class="u-fold">${c.collapsed ? "▸" : "▾"}</span><span class="u-icon u-icon-${c.icon}">${ICONS[c.icon] || ""}</span>${c.name === "Transform" ? "" : '<span class="u-check on">✓</span>'}<span class="u-comp-name">${esc(c.name)}</span>
+        ${removable ? `<button type="button" class="u-remove" data-remove="${c.slot}" title="Remove Component">Remove Component</button>` : '<span class="u-kebab">⋮</span>'}</div>${body}</div>`;
+    }).join("");
+
+    const addable = editable ? removed : [];
+    const hierarchy = Object.keys(spec.objects).map((name) =>
+      `<button type="button" class="u-hitem${name === sel ? " selected" : ""}" data-object="${esc(name)}"><span class="u-cube">▣</span>${esc(name)}</button>`
+    ).join("");
+
+    el.unityView.innerHTML = `
+      <div class="u-hier">
+        <div class="u-title">Hierarchy</div>
+        <div class="u-scene">▾ SampleScene</div>
+        <div class="u-hlist">${hierarchy}</div>
+      </div>
+      <div class="u-insp">
+        <div class="u-title">Inspector</div>
+        <div class="u-objhead">
+          <span class="u-cube big">▣</span><span class="u-check on">✓</span><span class="u-field u-name">${esc(sel)}</span><span class="u-static">Static</span>
+        </div>
+        <div class="u-row u-taglayer"><span class="u-label">Tag</span><span class="u-field u-enum">${esc(obj.tag || "Untagged")}</span><span class="u-label u-layer">Layer</span><span class="u-field u-enum">Default</span></div>
+        ${comps}
+        <div class="u-add">
+          <span class="u-addbtn${addable.length ? " active" : ""}">Add Component</span>
+          ${addable.map((c) => `<button type="button" class="u-addopt" data-add="${c.slot}">＋ ${esc(c.name)}</button>`).join("")}
+        </div>
+      </div>`;
+
+    el.unityView.querySelectorAll(".u-hitem").forEach((b) => b.addEventListener("click", () => {
+      selectedObject[l.id] = b.dataset.object;
+      renderUnity();
+    }));
+    el.unityView.querySelectorAll(".u-slot").forEach((input) => {
+      input.addEventListener(input.tagName === "SELECT" ? "change" : "input", () => {
+        s.values[input.dataset.slot] = input.value;
+        save();
+        input.classList.toggle("changed", isSlotChanged(input.dataset.slot));
+      });
+      if (input.tagName === "INPUT") input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); run(); } });
+    });
+    el.unityView.querySelectorAll("[data-remove]").forEach((b) => b.addEventListener("click", () => {
+      s.values[b.dataset.remove] = "";
+      save();
+      renderUnity();
+    }));
+    el.unityView.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", () => {
+      s.values[b.dataset.add] = l.slots[b.dataset.add].default;
+      save();
+      renderUnity();
     }));
   }
 
