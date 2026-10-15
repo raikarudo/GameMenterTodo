@@ -660,7 +660,7 @@ public class ScoreManager : MonoBehaviour
     id: "gameover",
     course: "basic",
     title: "ゲームオーバーとリトライ",
-    goal: "敵に当たったらゲームオーバー。R キーで最初からやり直す",
+    goal: "敵に当たったら GAME OVER を出して操作を止め、R キーで最初からやり直す",
     fileName: "GameOver.cs",
     code: `using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -674,7 +674,7 @@ public class GameOver : MonoBehaviour
         if (collision.gameObject.CompareTag("Enemy"))
         {
             gameOverPanel.SetActive(true);
-            Time.timeScale = 0f;
+            ⟦stop⟧
         }
     }
 
@@ -682,62 +682,200 @@ public class GameOver : MonoBehaviour
     {
         if (gameOverPanel.activeSelf && Input.GetKeyDown(KeyCode.R))
         {
-            ⟦reset⟧
             SceneManager.LoadScene(⟦scene⟧);
         }
     }
-}`,
+}
+// ※ この Script は Player に付ける`,
     slots: {
-      reset: { label: "時間を戻す", type: "choice", options: ["Time.timeScale = 1f;", REMOVE()], default: "Time.timeScale = 1f;" },
+      stop: { label: "操作を止める", type: "choice", options: ["GetComponent<PlayerMove>().enabled = false;", REMOVE()], default: "GetComponent<PlayerMove>().enabled = false;" },
       scene: { label: "読み込むシーン", type: "choice", options: ["SceneManager.GetActiveScene().name", '"Stage2"'], default: "SceneManager.GetActiveScene().name" },
     },
+    env: [
+      { name: "panel", label: "Hierarchy の GameOverPanel", options: [opt("hidden", "チェックを外して非表示にした"), opt("shown", "表示したまま")], default: "hidden" },
+    ],
     simulate(v, env, G) {
-      const dur = 6, hitAt = 1.5, retryAt = 3;
-      const keys = [[retryAt, retryAt + 0.1, "R"]];
+      const dur = 5.5, hitAt = 1.5, retryAt = 3.2;
+      const keys = [[0.2, hitAt, "→"], [hitAt + 0.3, 2.9, "←"], [retryAt, retryAt + 0.1, "R"], [retryAt + 0.4, dur, "→"]];
       const stage2 = v.scene === '"Stage2"';
-      const logs = [[hitAt, "Enemy に当たった → ゲームオーバー（Time.timeScale = 0）"]];
+      const shownFromStart = env.panel === "shown";
+      const logs = [];
+      // 表示したままだと、開始直後の R でもリトライできてしまう
+      if (shownFromStart) logs.push([0.1, "ゲームが始まった瞬間から GAME OVER が表示されている", "warn"]);
+      logs.push([hitAt, "Enemy に当たった → GAME OVER"]);
+      if (!v.stop) logs.push([hitAt + 0.5, "ゲームオーバーなのに、プレイヤーを操作できてしまう", "warn"]);
       if (stage2) logs.push([retryAt, "Scene 'Stage2' couldn't be loaded because it has not been added to the build settings or the AssetBundle has not been loaded.", "error"]);
-      else {
-        logs.push([retryAt, "R → シーンを読み込み直した"]);
-        if (!v.reset) logs.push([retryAt + 0.5, "シーンは最初に戻ったのに、プレイヤーも敵も動かない", "warn"]);
-      }
+      else logs.push([retryAt, "R → シーンを読み込み直した（すべて最初の状態に戻る）"]);
       const state = (t) => {
-        if (t < hitAt) return { px: -4 + t * 2, ex: 2 - t * 1.33, panel: false };
-        if (t < retryAt || stage2) return { px: -4 + hitAt * 2, ex: 2 - hitAt * 1.33, panel: true };
-        const tt = v.reset ? t - retryAt : 0;
-        return { px: -4 + tt * 2, ex: 2 - tt * 1.33, panel: false };
+        const reloaded = !stage2 && t >= retryAt;
+        if (reloaded) return { px: -4 + Math.max(0, t - retryAt - 0.4) * 2, panel: shownFromStart };
+        if (t < hitAt) return { px: -4 + Math.max(0, t - 0.2) * 2, panel: shownFromStart };
+        const hitX = -4 + (hitAt - 0.2) * 2;
+        const back = v.stop ? 0 : Math.max(0, Math.min(t, 2.9) - hitAt - 0.3) * 2;
+        return { px: hitX - back, panel: true };
       };
       return {
         duration: dur,
         draw(t) {
           const s = state(t);
           G.bg();
-          G.enemy(s.ex, 0);
-          G.player(s.px, 0);
-          G.keys([["R", held(keys, "R", t)]]);
-          const scale = t >= hitAt && (t < retryAt || stage2 || !v.reset) ? 0 : 1;
+          G.enemy(-1, 0);
+          G.player(s.px, 0, { dir: held(keys, "←", t) ? -1 : 1 });
           if (s.panel) G.panel("GAME OVER", ["R キーでリトライ"], { color: G.css("--enemy") });
-          G.label(`Time.timeScale = ${scale}`);
+          G.keys([["←", held(keys, "←", t)], ["→", held(keys, "→", t)], ["R", held(keys, "R", t)]]);
+          G.label(`gameOverPanel.activeSelf = ${s.panel}`);
         },
         logs,
       };
     },
     experiments: [
-      { text: "Time.timeScale = 1f; を消して、リトライしてみよう", done: (v) => v.reset === "" },
+      { text: "操作を止める行を消して、ゲームオーバー後に ← を押すとどうなる？", done: (v) => v.stop === "" },
+      { text: "GameOverPanel を表示したままにしてしまったら？", done: (v, e) => e.panel === "shown" },
       { text: "読み込むシーンを \"Stage2\" にしてみよう（Build Settings に登録していない）", done: (v) => v.scene === '"Stage2"' },
     ],
     verbalize: {
-      text: "Time.timeScale = 0 にすると ⟦0⟧。この値は ⟦1⟧ ので、リトライする前に 1 に戻しておく。シーンは ⟦2⟧ しか読み込めない。",
+      text: "SetActive(true) は ⟦0⟧。ゲームオーバーになっても ⟦1⟧ ので、enabled = false で止める。LoadScene で同じシーンを読み込むと ⟦2⟧。読み込めるのは ⟦3⟧ だけ。",
       blanks: [
-        { choices: ["時間の進みが止まり、物理や deltaTime を使う動きが止まる", "すべてのスクリプトが削除される"], answers: ["時間の進みが止まり、物理や deltaTime を使う動きが止まる"] },
-        { choices: ["シーンを読み込み直しても元に戻らない", "シーンを読み込み直すと 1 に戻る"], answers: ["シーンを読み込み直しても元に戻らない"] },
+        { choices: ["非表示にしていた GameObject を表示する", "新しい GameObject を作る"], answers: ["非表示にしていた GameObject を表示する"] },
+        { choices: ["プレイヤーのスクリプトは動き続ける", "すべてのスクリプトが自動で止まる"], answers: ["プレイヤーのスクリプトは動き続ける"] },
+        { choices: ["すべて最初の状態に戻る", "今の状態が引き継がれる"], answers: ["すべて最初の状態に戻る"] },
         { choices: ["Build Settings（Build Profiles）に登録したシーン", "Assets フォルダにあるすべてのシーン"], answers: ["Build Settings（Build Profiles）に登録したシーン"] },
       ],
     },
     explain: `
-<p><code>Time.timeScale</code> はゲーム内の時間の進む速さです。0 にすると <code>Time.deltaTime</code> が 0 になり、物理演算も止まるので、ポーズやゲームオーバーによく使われます。Update 自体は呼ばれ続けるので、R キーの入力は受け付けられます。</p>
-<p>timeScale はシーンに属さない、ゲーム全体の設定です。シーンを読み込み直しても 0 のまま残るので、「リトライしたら全部止まっている」というバグになります。シーンを切り替える前に 1 に戻しましょう。</p>
-<p><code>SceneManager.LoadScene</code> で読み込めるのは、Build Settings（Unity 6 では Build Profiles）の Scene List に登録したシーンだけです。新しくシーンを作ったら、登録を忘れないようにしましょう。</p>`,
+<p>GAME OVER の表示は、最初から Hierarchy に置いておき、Inspector の名前の左にあるチェックを外して非表示にしておきます。<code>SetActive(true)</code> で表示し、<code>activeSelf</code> で今表示されているかを調べられます。チェックを外し忘れると、ゲーム開始時から表示されてしまいます。</p>
+<p>パネルを出しても、プレイヤーを動かすスクリプトは動き続けます。コンポーネントの <code>enabled</code> を false にすると、そのスクリプトの Update が呼ばれなくなり、操作を止められます。</p>
+<p>リトライは「今のシーンを読み込み直す」だけで実現できます。シーン上のすべての GameObject が最初の状態で作り直されるからです。読み込めるのは Build Settings（Unity 6 では Build Profiles）の Scene List に登録したシーンだけなので、新しいシーンを作ったら登録を忘れないようにしましょう。</p>
+<p>ゲーム全体を一時停止したいときは <code>Time.timeScale</code> を使います。次のレッスンでポーズメニューを作りながら学びます。</p>`,
+  },
+  {
+    id: "pause",
+    course: "basic",
+    title: "ポーズメニューを作る",
+    goal: "Esc でゲームを一時停止し、再開・タイトルへ戻るを選べるメニュー",
+    fileName: "PauseMenu.cs",
+    code: `using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class PauseMenu : MonoBehaviour
+{
+    [SerializeField] GameObject pausePanel;
+    bool isPaused;
+
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (isPaused) Resume();
+            else Pause();
+        }
+    }
+
+    void Pause()
+    {
+        isPaused = true;
+        pausePanel.SetActive(true);
+        Time.timeScale = ⟦scale⟧f;
+    }
+
+    // 「再開」ボタンの OnClick にも登録する
+    public void Resume()
+    {
+        isPaused = false;
+        pausePanel.SetActive(false);
+        ⟦resume⟧
+    }
+
+    // 「タイトルへ」ボタンの OnClick に登録する
+    public void BackToTitle()
+    {
+        ⟦title⟧
+        SceneManager.LoadScene("Title");
+    }
+}`,
+    slots: {
+      scale: { label: "ポーズ中の timeScale", type: "choice", options: ["0", "0.2"], default: "0" },
+      resume: { label: "再開で時間を戻す", type: "choice", options: ["Time.timeScale = 1f;", REMOVE()], default: "Time.timeScale = 1f;" },
+      title: { label: "タイトルへ戻る前に時間を戻す", type: "choice", options: ["Time.timeScale = 1f;", REMOVE()], default: "Time.timeScale = 1f;" },
+    },
+    env: [
+      { name: "enemy", label: "敵の動かし方（EnemyMove.cs）", options: [opt("dt", "Time.deltaTime を掛けている"), opt("frame", "掛けていない（毎フレーム 0.03 ずつ）")], default: "dt" },
+    ],
+    simulate(v, env, G) {
+      const dt = 1 / FPS, dur = 9;
+      // 台本: 1.0 Esc → 2.6 Esc → 4.0 Esc → 5.2「タイトルへ」→ 6.2「スタート」でゲームに戻る
+      const ev = { pause1: 1, resume: 2.6, pause2: 4, title: 5.2, start: 6.2 };
+      const keys = [[ev.pause1, ev.pause1 + 0.1, "Esc"], [ev.resume, ev.resume + 0.1, "Esc"], [ev.pause2, ev.pause2 + 0.1, "Esc"]];
+      const pauseScale = Number(v.scale);
+      const scaleAt = (t) => {
+        if (t < ev.pause1) return 1;
+        if (t < ev.resume) return pauseScale;
+        if (t < ev.pause2) return v.resume ? 1 : pauseScale;
+        if (t < ev.title) return pauseScale;
+        return v.title ? 1 : pauseScale; // タイトルへ戻るときに戻したかどうか
+      };
+      const frames = [];
+      let px = -4, ex = 5, epx = 0;
+      for (let f = 0; f <= dur * FPS; f++) {
+        const t = f * dt;
+        if (t >= ev.start && frames.length && frames[frames.length - 1].t < ev.start) { px = -4; ex = 5; } // シーンを読み込み直した
+        const s = scaleAt(t);
+        if (t < ev.title || t >= ev.start) {
+          px += 1.5 * dt * s;
+          ex -= env.enemy === "dt" ? 1.2 * dt * s : 0.03;
+          if (ex < -7) ex = 6;
+        }
+        epx = ex;
+        frames.push({ t, px, ex: epx, s });
+      }
+      const logs = [
+        [ev.pause1, `Esc → ポーズ（Time.timeScale = ${pauseScale}）`],
+        [ev.resume, v.resume ? "Esc → 再開（Time.timeScale = 1）" : "Esc → 再開したはずなのに、動きが止まったまま", v.resume ? "info" : "warn"],
+        [ev.pause2, "Esc → もう一度ポーズ"],
+        [ev.title, "「タイトルへ」ボタン → Title シーン"],
+        [ev.start, v.title ? "「スタート」→ ゲーム開始" : "「スタート」→ ゲームが始まったのに、何も動かない", v.title ? "info" : "warn"],
+      ];
+      if (pauseScale > 0) logs.push([ev.pause1 + 0.6, "ポーズ中なのに、ゆっくり動いている", "warn"]);
+      if (env.enemy === "frame") logs.push([ev.pause1 + 0.4, "ポーズ中なのに、敵だけ動き続けている", "warn"]);
+      return {
+        duration: dur,
+        draw(t) {
+          const fr = frames[Math.min(frames.length - 1, Math.floor(t * FPS))];
+          G.bg();
+          if (t >= ev.title && t < ev.start) {
+            G.panel("TITLE", ["▶ スタート"]);
+            G.label(`Time.timeScale = ${fr.s}`);
+            return;
+          }
+          G.enemy(fr.ex, 0);
+          G.player(fr.px, 0);
+          const paused = (t >= ev.pause1 && t < ev.resume) || (t >= ev.pause2 && t < ev.title);
+          if (paused) G.panel("PAUSE", ["▶ 再開", t >= ev.title - 0.4 ? "▶ タイトルへ ←" : "▶ タイトルへ"]);
+          G.keys([["Esc", held(keys, "Esc", t)]]);
+          G.label(`Time.timeScale = ${fr.s}`);
+        },
+        logs,
+      };
+    },
+    experiments: [
+      { text: "再開のときに Time.timeScale = 1f; を戻さなかったら？", done: (v) => v.resume === "" },
+      { text: "ポーズ中の timeScale を 0.2 にしてみよう", done: (v) => v.scale === "0.2" },
+      { text: "敵の動きに Time.deltaTime を掛けていなかったら、ポーズ中どうなる？", done: (v, e) => e.enemy === "frame" },
+      { text: "タイトルへ戻る前の Time.timeScale = 1f; を消して、もう一度ゲームを始めてみよう", done: (v) => v.title === "" },
+    ],
+    verbalize: {
+      text: "Time.timeScale = 0 にすると ⟦0⟧。だから deltaTime を使っていない動きは ⟦1⟧。timeScale は ⟦2⟧ ので、再開するときもタイトルへ戻るときも 1 に戻す。",
+      blanks: [
+        { choices: ["Time.deltaTime が 0 になり、物理演算も止まる", "すべてのスクリプトの Update が止まる"], answers: ["Time.deltaTime が 0 になり、物理演算も止まる"] },
+        { choices: ["ポーズ中も動き続ける", "一緒に止まる"], answers: ["ポーズ中も動き続ける"] },
+        { choices: ["シーンを切り替えても元に戻らない", "シーンを切り替えると自動で 1 に戻る"], answers: ["シーンを切り替えても元に戻らない"] },
+      ],
+    },
+    explain: `
+<p><code>Time.timeScale</code> はゲーム内の時間の進む速さです。1 が通常、0.5 で半分の速さ、0 で停止です。0 にすると <code>Time.deltaTime</code> が 0 になり、物理演算も止まります。そのため、deltaTime を掛けて動かしているものはすべて止まります。逆に、deltaTime を掛けずに「毎フレーム一定量」動かしているものは止まりません。ここでも deltaTime を掛ける習慣が効いてきます。</p>
+<p>timeScale が 0 でも Update は呼ばれ続けるので、Esc キーで再開できます。UI のボタンも押せます。</p>
+<p>timeScale はシーンに属さない、ゲーム全体の設定です。シーンを切り替えても元に戻らないので、「タイトルに戻って始め直したら何も動かない」というバグがよく起きます。シーンを切り替える前に必ず 1 に戻しましょう。</p>
+<p>ポーズ中もメニューのアニメーションは動かしたい、という場合は Animator の Update Mode を Unscaled Time にするか、<code>Time.unscaledDeltaTime</code> を使います。ポーズ中に「〇秒待つ」処理はコース2で扱います。</p>`,
   },
   {
     id: "spawner",
@@ -1004,7 +1142,7 @@ public class GameOverSequence : MonoBehaviour
       ],
     },
     explain: `
-<p><code>WaitForSeconds</code> はゲーム内の時間で数えます。timeScale が 0 だとゲーム内の時間が進まないので、何秒たっても再開しません。0.2 なら 5 倍の時間がかかります。</p>
+<p>コース1の「ポーズメニューを作る」で学んだように、timeScale を 0 にするとゲーム内の時間が止まります。<code>WaitForSeconds</code> はゲーム内の時間で数えるので、timeScale が 0 だと何秒たっても再開しません。0.2 なら 5 倍の時間がかかります。</p>
 <p><code>WaitForSecondsRealtime</code> は timeScale に関係なく、現実の時間で数えます。ポーズ画面のアニメーションや、ゲームオーバー後の演出のように「時間を止めたまま待ちたい」ときに使います。</p>
 <p>「ゲームオーバーになったら画面が固まって先に進まない」というバグの原因として、とてもよくあるパターンです。timeScale をいじったら、その間の待ち方も確認しましょう。</p>`,
   },

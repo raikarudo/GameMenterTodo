@@ -15,10 +15,10 @@ GeekSalon のプログラミング指導方針（programming-teaching）に沿�
 
 ## 収録内容
 
-- **コース1 ゲームを1本作る**（8レッスン）：横スクロールのコイン集めアクションを、移動 → ジャンプ → カメラ追従（手書き版と Cinemachine 版）→ コイン → スコア表示 → ゲームオーバーとリトライ → 敵の出現 の順に作る
+- **コース1 ゲームを1本作る**（9レッスン）：横スクロールのコイン集めアクションを、移動 → ジャンプ → カメラ追従（手書き版と Cinemachine 版）→ コイン → スコア表示 → ゲームオーバーとリトライ → ポーズメニュー → 敵の出現 の順に作る
 - **コース2 「待つ」処理**（5レッスン）：1人でゲームを完成させた受講生向けの次のステップ。ダメージ後の無敵時間、ゲームオーバー演出（timeScale と WaitForSecondsRealtime）、敵のウェーブ、ロード画面つきのシーン読み込み（async / await）、ランキングの通信取得
 
-「壊して試す」では、コードの書き換えに加えて、Inspector の欄の入れ忘れ、Is Trigger、Rigidbody の付け忘れ、Build Settings 未登録、Unity 6 の Active Input Handling、通信状態など、初学者が実際につまずく設定も変えられる。Console には Unity が実際に出すエラー文を表示する。
+「壊して試す」では、コードの書き換えに加えて、Inspector の欄の入れ忘れ、Is Trigger、Rigidbody の付け忘れ、Build Settings 未登録、timeScale の戻し忘れ、Unity 6 の Active Input Handling、通信状態など、初学者が実際につまずく設定も変えられる。Console には Unity が実際に出すエラー文を表示する。
 
 Cinemachine のレッスンだけは、コードの代わりに Unity の Hierarchy と Inspector を模した画面を表示し、その設定（Brain、Tracking Target、Damping、Dead Zone、Confiner）を書き換える。実際の開発でもコードはほとんど書かないため。オブジェクトの切り替え、数値欄の編集、Object 欄の選択、Remove Component / Add Component ができる。レッスンに `inspector` を定義すると、この表示になる。
 
