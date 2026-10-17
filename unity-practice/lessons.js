@@ -11,7 +11,10 @@
 // simulate : (v, env, G) => { duration, draw(t), logs: [[秒, 文字列, 種類?]], errors? }
 //            v は slots の現在値（number は数値に変換済み）、G は app.js の描画ヘルパー
 //            errors を返すとコンパイルエラー扱い。実行時エラーは logs に "error" で出す
-// experiments : 壊して試すお題。done(v, env) が true の状態で実行すると達成
+// experiments : 壊して試すお題。1つのお題 = 1か所の壊し方。
+//            set  : そのお題で変える値（slots か env の名前 → 値）。env だけのお題は「状況を変える」お題
+//            look : 実行したときに見るところ
+//            why  : 壊したところと起きたことを結ぶ理由（実行後に「なぜ？」を開くと読める）
 // verbalize   : 言葉にするステップの日本語穴埋め（⟦n⟧ が blanks[n]）
 
 const FPS = 60;
@@ -103,10 +106,11 @@ public class PlayerMove : MonoBehaviour
       };
     },
     experiments: [
-      { text: "GetAxisRaw に変えて、キーを離した瞬間の動きを比べよう", done: (v) => v.get === "GetAxisRaw" },
-      { text: "* Time.deltaTime を消して、PCの性能も変えてみよう", done: (v, e) => v.dt === "" && Number(e.fps) !== 60 },
-      { text: "入力軸の名前を1文字まちがえて \"Horizonta\" にしたら？", done: (v) => v.axis === "Horizonta" },
-      { text: "Active Input Handling を New にしてみよう（Unity 6 の新規プロジェクトでよく起きる）", done: (v, e) => e.input === "new" },
+      { text: "GetAxis を GetAxisRaw に変える", set: {"get": "GetAxisRaw"}, look: "→ を離した瞬間、プレイヤーがすぐ止まるか", why: "GetAxis は、キーを離しても入力値が 0 に向かって少しずつ戻るので、少し滑る。GetAxisRaw は離した瞬間に 0 になるので、すぐ止まる。" },
+      { text: "* Time.deltaTime を消す（速いPCで）", set: {"dt": "", "fps": 144}, look: "移動の速さ。普通のPCのときと比べる", why: "deltaTime を掛けないと「1フレームに speed ぶん」進む。144fps のPCは1秒に144回 Update が呼ばれるので、そのぶん速く動く。PCの性能で速さが変わってしまう。" },
+      { text: "入力軸の名前を \"Horizonta\" にする（1文字まちがい）", set: {"axis": "Horizonta"}, look: "Console の赤いエラー", why: "入力軸の名前は \" \" で囲んだ文字列なので、つづりのまちがいをコンパイラは見つけられない。再生して GetAxis が呼ばれた瞬間に「その名前の軸はない」というエラーになり、毎フレーム出続ける。" },
+      { text: "入力軸を \"Vertical\" にする", set: {"axis": "Vertical"}, look: "→ を押しても動くか。h の値", why: "Vertical は上下キー（W・S）の軸。押しているのは →（Horizontal の軸）なので、h はずっと 0 のまま。" },
+      { text: "Active Input Handling を New にする", set: {"input": "new"}, look: "Console のエラー", why: "Input.GetAxis は昔からある Input Manager の機能。Player Settings で新しい Input System だけを使う設定にすると、古い方法で入力を読んだ時点でエラーになる。" },
     ],
     verbalize: {
       text: "Input.GetAxis(\"Horizontal\") は、左右キーの入力を ⟦0⟧ で返す。それに speed と Time.deltaTime を掛けて ⟦1⟧ ことで、キーを押している間だけ動く。入力軸の名前は文字列なので、まちがえても ⟦2⟧。",
@@ -208,10 +212,10 @@ public class PlayerJump : MonoBehaviour
       };
     },
     experiments: [
-      { text: "&& isGrounded を消すと、空中で連打したらどうなる？", done: (v) => v.ground === "" },
-      { text: "ForceMode.Impulse を外した AddForce にしてみよう", done: (v) => v.force === "AddForce(Vector3.up * jumpPower)" },
-      { text: "Rigidbody を付け忘れた状態で実行してみよう", done: (v, e) => e.rb === "no" },
-      { text: "linearVelocity に直接代入する書き方も試そう", done: (v) => v.force.startsWith("linearVelocity") },
+      { text: "&& isGrounded を消す", set: {"ground": ""}, look: "空中で Space を押したときに、また跳ぶか", why: "isGrounded のチェックがなくなると、if の条件は「Space を押した」だけになる。空中でも条件を満たすので、押すたびにジャンプする。" },
+      { text: "ForceMode.Impulse を外す", set: {"force": "AddForce(Vector3.up * jumpPower)"}, look: "ジャンプの高さ", why: "ForceMode を省略すると Force（押し続ける力）になる。1回の物理更新（0.02秒）ぶんしか力がかからないので、速度は 6 × 0.02 = 0.12 しか増えず、ほとんど跳ばない。" },
+      { text: "linearVelocity に直接代入する", set: {"force": "linearVelocity = Vector3.up * jumpPower"}, look: "Impulse のときと同じ高さになるか", why: "linearVelocity への代入は、今の速度を上書きする。地面で止まっている状態からなら、Impulse で 6 を足すのと同じ結果になる。違いが出るのは、落下中など すでに動いているとき。" },
+      { text: "Player の Rigidbody を付け忘れる", set: {"rb": "no"}, look: "Space を押したときの Console", why: "GetComponent<Rigidbody>() は、付いていなければ何も返さない（null）。rb が空のまま rb.AddForce を呼んだ瞬間にエラーになる。Start の時点ではエラーにならない点に注意。" },
     ],
     verbalize: {
       text: "Rigidbody に ⟦0⟧ と、あとは ⟦1⟧。isGrounded は ⟦2⟧ を覚えておく変数で、これがないと空中で何度でもジャンプできてしまう。",
@@ -285,10 +289,10 @@ public class CameraFollow : MonoBehaviour
       };
     },
     experiments: [
-      { text: "Start にしたら、カメラはどうなる？", done: (v) => v.when === "Start" },
-      { text: "Update にして、プレイヤーの動きをよく見てみよう", done: (v) => v.when === "Update" },
-      { text: "Target 欄を None のまま実行してみよう（いちばんよく見るエラー）", done: (v, e) => e.target === "none" },
-      { text: "offset の x を 3 や -3 にしてみよう", done: (v) => v.ox !== 0 },
+      { text: "LateUpdate を Start にする", set: {"when": "Start"}, look: "カメラがプレイヤーを追いかけ続けるか", why: "Start は最初の1回しか呼ばれない。カメラはその瞬間のプレイヤーの位置に移動したあと、二度と動かない。" },
+      { text: "LateUpdate を Update にする", set: {"when": "Update"}, look: "プレイヤーの細かい揺れ", why: "Update の呼ばれる順番はスクリプトごとに決まっていない。カメラの Update がプレイヤーより先に呼ばれたフレームは、プレイヤーが動く前の位置に合わせてしまい、1フレームぶんずれる。" },
+      { text: "Target 欄を None のままにする", set: {"target": "none"}, look: "Console のエラー", why: "target に何も入っていないまま target.position を読もうとしたので、毎フレーム UnassignedReferenceException になる。" },
+      { text: "offset の x を 3 にする", set: {"ox": 3}, look: "プレイヤーが画面のどこに映るか", why: "カメラは「プレイヤーの位置 + offset」に置かれる。x を 3 にするとカメラが右にずれるので、プレイヤーは画面の左寄りに映り、進む方向が広く見える。" },
     ],
     verbalize: {
       text: "LateUpdate は ⟦0⟧ に呼ばれる。カメラをここで動かすと ⟦1⟧ に合わせられるので、ガタつかない。Inspector の欄に入れ忘れると ⟦2⟧。",
@@ -462,11 +466,13 @@ CM Camera    [CinemachineCamera]
       };
     },
     experiments: [
-      { text: "Position Composer の Damping X を 0 にしたら？ 3 にしたら？", done: (v) => v.damping !== 1 },
-      { text: "Dead Zone の Size X を 0 や 0.5 にして、カメラが動き出すタイミングを比べよう", done: (v) => v.deadzone !== 0.2 },
-      { text: "CM Camera の Confiner 3D を Remove Component して、ステージの端まで歩かせてみよう", done: (v) => v.confiner === "" },
-      { text: "Tracking Target を None にしたら？ 前のレッスンの手書きカメラとの違いは？", done: (v) => v.target === "None" },
-      { text: "Main Camera を選んで、Cinemachine Brain を Remove Component したら？", done: (v) => v.brain === "" },
+      { text: "Damping X を 0 にする", set: {"damping": 0}, look: "カメラの追いかけ方。手書きカメラと比べる", why: "Damping は、目標の位置に近づくのにかける時間。0 だと遅れずに毎フレーム目標へ移動するので、手書きカメラと同じぴったりした動きになる。" },
+      { text: "Damping X を 3 にする", set: {"damping": 3}, look: "プレイヤーが止まったあとのカメラ", why: "Damping を大きくすると、カメラは目標の位置へゆっくり近づく。プレイヤーが止まってからも、しばらくカメラが動き続ける。" },
+      { text: "Dead Zone の Size X を 0 にする", set: {"deadzone": 0}, look: "カメラが動き出すタイミング", why: "Dead Zone は「この中にいる間はカメラを動かさない」範囲。0 にすると範囲がなくなり、プレイヤーが少しでも動けばカメラも動く。" },
+      { text: "Dead Zone の Size X を 0.5 にする", set: {"deadzone": 0.5}, look: "破線の枠と、カメラが動き出すタイミング", why: "Dead Zone を画面幅の半分にすると、プレイヤーが破線の枠の端に来るまでカメラは動かない。" },
+      { text: "Confiner 3D を Remove Component する", set: {"confiner": ""}, look: "ステージの右端で、暗い部分が映るか", why: "Confiner はカメラの位置を Bounding Volume（ステージを囲む Box Collider）の内側に制限する。外すと制限がなくなり、ステージの外まで映る。" },
+      { text: "Tracking Target を None にする", set: {"target": "None"}, look: "カメラが動くか。Console にエラーは出るか", why: "追いかける相手がいないので、カメラは動かない。Cinemachine は Target が空でもエラーを出さないので、手書きカメラのように赤いエラーで気づくことはできない。" },
+      { text: "Cinemachine Brain を Remove Component する", set: {"brain": ""}, look: "カメラが動くか", why: "CinemachineCamera は「こう動かしたい」という設定にすぎない。設定を読んで Main Camera を実際に動かすのは Cinemachine Brain なので、Brain がないと何も起きない。" },
     ],
     verbalize: {
       text: "Cinemachine では、カメラの動きを ⟦0⟧ で決める。Main Camera の Cinemachine Brain が、⟦1⟧。Damping を大きくすると ⟦2⟧、Confiner を付けると ⟦3⟧。",
@@ -552,10 +558,11 @@ public class CoinCollector : MonoBehaviour
       };
     },
     experiments: [
-      { text: "コインの Is Trigger をオフにしたら？", done: (v, e) => e.trigger === "off" },
-      { text: "OnTriggerEnter を OnCollisionEnter に変えたら？", done: (v) => v.event === "OnCollisionEnter" },
-      { text: "タグ名を小文字の \"coin\" にしてみよう", done: (v) => v.tag === "coin" },
-      { text: "Destroy の中身を other や gameObject にしたら、何が消える？", done: (v) => v.target !== "other.gameObject" },
+      { text: "コインの Is Trigger をオフにする", set: {"trigger": "off"}, look: "プレイヤーがコインを通り抜けるか", why: "Is Trigger がオフの Collider は、壁と同じ「ぶつかる物体」になる。ぶつかって止まるだけで、OnTriggerEnter は呼ばれない。" },
+      { text: "OnTriggerEnter を OnCollisionEnter にする", set: {"event": "OnCollisionEnter"}, look: "Console のエラー", why: "OnCollisionEnter の引数は Collision 型と決まっている。Collider 型を受け取る OnCollisionEnter を書くと、形が合わないので Unity は呼ばずに無視する。" },
+      { text: "タグ名を小文字の \"coin\" にする", set: {"tag": "coin"}, look: "コインが消えるか", why: "タグ名は大文字と小文字を区別して比べる。コインのタグは \"Coin\" なので \"coin\" とは一致せず、if の中に入らない。" },
+      { text: "Destroy の中身を other にする", set: {"target": "other"}, look: "コインの見た目が残るか。もう一度取れるか", why: "other はコインの Collider（当たり判定の部品）。Destroy(other) は部品を1つ外すだけなので、見た目は残る。当たり判定がなくなったので、二度と取れない。" },
+      { text: "Destroy の中身を gameObject にする", set: {"target": "gameObject"}, look: "何が消えたか", why: "このスクリプトは Player に付いているので、gameObject は Player 自身を指す。コインではなく自分を消してしまった。" },
     ],
     verbalize: {
       text: "Is Trigger をオンにした Collider は ⟦0⟧、代わりに ⟦1⟧ が呼ばれる。CompareTag のタグ名は ⟦2⟧。Destroy に other.gameObject を渡すと ⟦3⟧ が消える。",
@@ -637,10 +644,10 @@ public class ScoreManager : MonoBehaviour
       };
     },
     experiments: [
-      { text: "+= を = にしたら、スコアはどうなる？", done: (v) => v.op === "=" },
-      { text: "\"Score: score\" と、変数を文字列の中に入れてしまったら？", done: (v) => v.show === 'scoreText.text = "Score: score";' },
-      { text: "表示を更新する行を消してみよう。変数 score はどうなっている？", done: (v) => v.show === "" },
-      { text: "Score Text 欄を None のまま実行してみよう", done: (v, e) => e.text === "none" },
+      { text: "+= を = にする", set: {"op": "="}, look: "2枚目、3枚目のコインでスコアがどうなるか", why: "= は代入なので、毎回 score を 10 で上書きする。+= は今の値に足すので増えていく。" },
+      { text: "\"Score: score\" にする", set: {"show": "scoreText.text = \"Score: score\";"}, look: "画面の文字", why: "\" \" で囲んだ部分はただの文字。score という変数の値ではなく、s・c・o・r・e という5文字がそのまま表示される。" },
+      { text: "表示を更新する行を消す", set: {"show": ""}, look: "画面のスコアと、下に出ている変数 score の値", why: "変数 score は増えているが、scoreText.text に代入する行がないので、画面の文字は最初のまま変わらない。" },
+      { text: "Score Text 欄を None のままにする", set: {"text": "none"}, look: "Console のエラー。最後の行番号", why: "scoreText が空（null）のまま scoreText.text に代入しようとしたので NullReferenceException。エラーの最後の :12 は「12行目で起きた」という意味。" },
     ],
     verbalize: {
       text: "score は ⟦0⟧ で、画面の文字は ⟦1⟧ 変わる。変数を増やしただけでは、画面の表示は ⟦2⟧。",
@@ -729,9 +736,9 @@ public class GameOver : MonoBehaviour
       };
     },
     experiments: [
-      { text: "操作を止める行を消して、ゲームオーバー後に ← を押すとどうなる？", done: (v) => v.stop === "" },
-      { text: "GameOverPanel を表示したままにしてしまったら？", done: (v, e) => e.panel === "shown" },
-      { text: "読み込むシーンを \"Stage2\" にしてみよう（Build Settings に登録していない）", done: (v) => v.scene === '"Stage2"' },
+      { text: "操作を止める行を消す", set: {"stop": ""}, look: "ゲームオーバー後に ← を押したとき", why: "パネルを表示しただけで、プレイヤーを動かす PlayerMove スクリプトは動き続けている。enabled = false で止めないと、操作を受け付けてしまう。" },
+      { text: "GameOverPanel を表示したままにする", set: {"panel": "shown"}, look: "ゲームが始まった直後の画面", why: "GameOverPanel が最初から表示されているので、開始時から GAME OVER が見える。activeSelf も最初から true なので、R キーでいつでもリトライできてしまう。" },
+      { text: "読み込むシーンを \"Stage2\" にする", set: {"scene": "\"Stage2\""}, look: "R を押したときの Console", why: "LoadScene で読み込めるのは Build Settings に登録したシーンだけ。Stage2 は登録していないので読み込めない。" },
     ],
     verbalize: {
       text: "SetActive(true) は ⟦0⟧。ゲームオーバーになっても ⟦1⟧ ので、enabled = false で止める。LoadScene で同じシーンを読み込むと ⟦2⟧。読み込めるのは ⟦3⟧ だけ。",
@@ -858,10 +865,10 @@ public class PauseMenu : MonoBehaviour
       };
     },
     experiments: [
-      { text: "再開のときに Time.timeScale = 1f; を戻さなかったら？", done: (v) => v.resume === "" },
-      { text: "ポーズ中の timeScale を 0.2 にしてみよう", done: (v) => v.scale === "0.2" },
-      { text: "敵の動きに Time.deltaTime を掛けていなかったら、ポーズ中どうなる？", done: (v, e) => e.enemy === "frame" },
-      { text: "タイトルへ戻る前の Time.timeScale = 1f; を消して、もう一度ゲームを始めてみよう", done: (v) => v.title === "" },
+      { text: "再開の Time.timeScale = 1f; を消す", set: {"resume": ""}, look: "2回目の Esc（再開）のあと", why: "Resume でパネルは閉じたが、timeScale は 0 のまま。ゲーム内の時間が止まっているので、何も動かない。" },
+      { text: "ポーズ中の timeScale を 0.2 にする", set: {"scale": "0.2"}, look: "ポーズ中の敵とプレイヤー", why: "timeScale は時間の進む速さ。0.2 は「5分の1の速さ」なので、止まらずにスローモーションになる。" },
+      { text: "敵の動きに Time.deltaTime を掛けない", set: {"enemy": "frame"}, look: "ポーズ中の敵", why: "timeScale = 0 で 0 になるのは Time.deltaTime。deltaTime を掛けずに毎フレーム 0.03 ずつ動かしている敵は、Update が呼ばれ続ける限り動く。" },
+      { text: "タイトルへ戻る前の Time.timeScale = 1f; を消す", set: {"title": ""}, look: "タイトルから「スタート」したあと", why: "timeScale はシーンをまたいで残る。0 のままタイトルへ戻ったので、次のゲームも時間が止まったまま始まる。" },
     ],
     verbalize: {
       text: "Time.timeScale = 0 にすると ⟦0⟧。だから deltaTime を使っていない動きは ⟦1⟧。timeScale は ⟦2⟧ ので、再開するときもタイトルへ戻るときも 1 に戻す。",
@@ -950,10 +957,10 @@ public class EnemySpawner : MonoBehaviour
       };
     },
     experiments: [
-      { text: "timer = 0f; を消したらどうなる？", done: (v) => v.reset === "" },
-      { text: "出現間隔の数字を変えてみよう", done: (v) => v.interval !== 1.5 },
-      { text: "Enemy Prefab 欄に、シーン上の敵を入れてしまったら？（最後まで見てみよう）", done: (v, e) => e.prefab === "scene" },
-      { text: "Enemy Prefab 欄を None のまま実行してみよう", done: (v, e) => e.prefab === "none" },
+      { text: "timer = 0f; を消す", set: {"reset": ""}, look: "敵の数", why: "timer を 0 に戻さないと、一度 interval を超えたあとは if の条件がずっと true。毎フレーム Instantiate が呼ばれる。" },
+      { text: "出現間隔を 0.5 にする", set: {"interval": 0.5}, look: "敵が出てくる間隔", why: "interval は「何秒たったら出すか」。0.5 にすると、1.5 のときの3倍の頻度で出てくる。" },
+      { text: "Enemy Prefab 欄にシーン上の敵を入れる", set: {"prefab": "scene"}, look: "最初の敵が画面の外に出たあと", why: "Instantiate はコピー元を複製する。シーン上の敵をコピー元にすると、その敵が画面外で消えた瞬間にコピー元がなくなり、それ以降はエラーになる。" },
+      { text: "Enemy Prefab 欄を None のままにする", set: {"prefab": "none"}, look: "Console のエラー", why: "コピー元が空なので、Instantiate が呼ばれるたびに「複製したいオブジェクトが null」というエラーになる。" },
     ],
     verbalize: {
       text: "timer に毎フレーム Time.deltaTime を足すと、⟦0⟧ になる。interval を超えたら敵を生成して ⟦1⟧。Instantiate には ⟦2⟧ を渡す。",
@@ -1057,9 +1064,9 @@ public class PlayerDamage : MonoBehaviour
       };
     },
     experiments: [
-      { text: "|| isInvincible を消すと、続けて当たったときどうなる？", done: (v) => v.guard === "" },
-      { text: "StartCoroutine を使わずに Invincible(); と呼んだら？", done: (v) => !v.start.startsWith("StartCoroutine") },
-      { text: "点滅の間隔を変えると、無敵時間の長さはどうなる？", done: (v) => v.wait !== 0.1 },
+      { text: "|| isInvincible を消す", set: {"guard": ""}, look: "2体目の敵に当たったときの HP と点滅", why: "無敵中かどうかを確かめずに処理するので、無敵中に当たっても HP が減り、コルーチンがもう1つ始まる。2つのコルーチンが別々に表示を切り替えるので、点滅が乱れる。" },
+      { text: "StartCoroutine を使わずに Invincible(); と呼ぶ", set: {"start": "Invincible();"}, look: "点滅するか。HP の減り方", why: "IEnumerator のメソッドを直接呼ぶと、実行の準備をした入れ物が作られるだけで中身は動かない。isInvincible が true にならないので、毎回ダメージを受ける。" },
+      { text: "点滅の間隔を 0.3 にする", set: {"wait": 0.3}, look: "無敵が続く時間", why: "ループは10回で、1回ごとに wait 秒待つ。無敵時間は 10 × wait 秒なので、0.3 にすると 3 秒に延びる。" },
     ],
     verbalize: {
       text: "StartCoroutine で動かしたコルーチンは、⟦0⟧、時間がたつと続きから動く。isInvincible のチェックがないと、無敵中に当たったときに ⟦1⟧。StartCoroutine を使わずに呼ぶと ⟦2⟧。",
@@ -1130,8 +1137,9 @@ public class GameOverSequence : MonoBehaviour
       };
     },
     experiments: [
-      { text: "WaitForSeconds に変えたらどうなる？", done: (v) => v.wait === "WaitForSeconds" && v.scale === "0" },
-      { text: "timeScale を 0.2（スローモーション）にして、両方の待ち方を比べよう", done: (v) => v.scale === "0.2" },
+      { text: "WaitForSecondsRealtime を WaitForSeconds にする", set: {"wait": "WaitForSeconds"}, look: "Result 画面に移るか", why: "WaitForSeconds はゲーム内の時間で数える。timeScale = 0 でゲーム内の時間が止まっているので、2秒はいつまでもたたない。" },
+      { text: "timeScale を 0.2 にする", set: {"scale": "0.2"}, look: "背景の敵の速さと、Result に移るまでの時間", why: "WaitForSecondsRealtime は現実の時間で数えるので、timeScale を 0.2 にしても 2 秒で次に進む。背景の敵は 5分の1 の速さで動く。" },
+      { text: "timeScale を 1 にする", set: {"scale": "1"}, look: "GAME OVER 表示中の敵", why: "時間を止めていないので、GAME OVER の表示中も敵が普通の速さで動き続ける。" },
     ],
     verbalize: {
       text: "WaitForSeconds は ⟦0⟧ で数えるので、timeScale が 0 だと ⟦1⟧。時間を止めたまま待ちたいときは ⟦2⟧ を使う。",
@@ -1220,9 +1228,9 @@ public class WaveSpawner : MonoBehaviour
       };
     },
     experiments: [
-      { text: "1体ごとの待ちを消してみよう", done: (v) => v.inner === "" },
-      { text: "ウェーブの区切りを WaitForSeconds(2f) にしたら？", done: (v) => v.between.includes("2f") },
-      { text: "待ちを両方とも消したら？", done: (v) => !v.inner && !v.between },
+      { text: "1体ごとの待ちを消す", set: {"inner": ""}, look: "同じウェーブの敵の出方", why: "1体ごとの待ちがないので、同じウェーブの敵は1フレームでまとめて出てくる。ウェーブの区切り（WaitUntil）は残っているので、全滅を待ってから次へ進む。" },
+      { text: "ウェーブの区切りを WaitForSeconds(2f) にする", set: {"between": "yield return new WaitForSeconds(2f);"}, look: "前のウェーブの敵が残っているうちに、次が始まるか", why: "WaitForSeconds(2f) は、敵が残っていても2秒で次へ進む。倒すのが間に合わないと、前のウェーブの敵が残ったまま次が始まる。" },
+      { text: "ウェーブの区切りの待ちを消す", set: {"between": ""}, look: "ウェーブとウェーブの間", why: "区切りの待ちがないので、前のウェーブの最後の敵が出た直後に、次のウェーブが始まる。" },
     ],
     verbalize: {
       text: "コルーチンの中で yield return を書くと ⟦0⟧ ので、出現の間隔やウェーブの区切りを ⟦1⟧ 書ける。WaitUntil は ⟦2⟧ 待つ。",
@@ -1307,8 +1315,8 @@ public class TitleMenu : MonoBehaviour
       };
     },
     experiments: [
-      { text: "while の中の await を消したら？", done: (v) => v.wait === "" },
-      { text: "バーに op.progress をそのまま入れてみよう", done: (v) => v.value === "op.progress" },
+      { text: "while の中の await を消す", set: {"wait": ""}, look: "ボタンを押したあとの画面", why: "while の中に await がないと、ループは Unity に処理を返さない。読み込みが終わるまで1フレームの中で回り続けるので、画面が固まる。" },
+      { text: "バーに op.progress をそのまま入れる", set: {"value": "op.progress"}, look: "ロードバーの最後の値", why: "op.progress は読み込みが終わった時点で 0.9 になり、残りの 0.1 はシーンの切り替え。そのまま入れると 90% で止まって見える。" },
     ],
     verbalize: {
       text: "LoadSceneAsync は ⟦0⟧ シーンを読み込む。await Awaitable.NextFrameAsync() は ⟦1⟧ ので、その間に画面が描き直されてロードバーが動く。op.progress は読み込みが終わっても ⟦2⟧。",
@@ -1400,10 +1408,10 @@ public class RankingView : MonoBehaviour
       };
     },
     experiments: [
-      { text: "通信状態を「遅い」にして、ロード中の表示を確かめよう", done: (v, e) => e.net === "slow" && v.send.startsWith("await") },
-      { text: "圏外にしたら、どう表示される？", done: (v, e) => e.net === "offline" },
-      { text: "await を消して、通信が良好なときに実行してみよう", done: (v, e) => !v.send.startsWith("await") },
-      { text: "失敗したときの処理を消して、圏外で実行してみよう", done: (v, e) => v.onError.startsWith("//") && e.net === "offline" },
+      { text: "await を消す", set: {"send": "req.SendWebRequest();"}, look: "通信状態が良好なのに、どう表示されるか", why: "await がないので、通信を始めた直後に次の行へ進む。まだ結果が届いていないので result は Success ではなく、失敗の処理に入る。" },
+      { text: "失敗したときの処理を消す（圏外で）", set: {"onError": "// 何もしない", "net": "offline"}, look: "通信に失敗したときの画面", why: "失敗したときに何も表示しないので、画面は空のまま。プレイヤーには、ボタンが壊れているように見える。" },
+      { text: "通信状態を「圏外」にする（コードはそのまま）", set: {"net": "offline"}, look: "通信に失敗したときの画面", why: "圏外では通信が失敗し、result が ConnectionError になる。失敗したときの表示を書いてあるので、プレイヤーに伝えられる。" },
+      { text: "通信状態を「遅い」にする（コードはそのまま）", set: {"net": "slow"}, look: "通信中の画面", why: "await で通信の終わりを待っている間も、ゲームは止まらない。だからロード中のアイコンを回し続けられる。" },
     ],
     verbalize: {
       text: "await req.SendWebRequest() は ⟦0⟧ 次の行に進む。その間もゲームは止まらないので、⟦1⟧。通信は ⟦2⟧ ので、result を確かめてプレイヤーに知らせる。",

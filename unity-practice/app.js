@@ -19,7 +19,7 @@
     "steps", "stepGuide", "playArea", "envArea", "fileName", "code", "runBtn", "copyBtn", "resetBtn",
     "nextStepBtn", "experiments", "expCount", "expList", "console", "scene", "verbalArea", "verbalText",
     "verbalCheckBtn", "verbalResult", "noteInput", "noteCopyBtn", "toExplainBtn", "explainArea",
-    "explainBody", "nextLessonBtn", "tabCode", "tabResult", "resultDot", "slotPanel", "unityView",
+    "explainBody", "nextLessonBtn", "tabCode", "tabResult", "resultDot", "slotPanel", "unityView", "multiWarn", "breakNote",
   ].map((id) => [id, $(id)]));
 
   // ───────── 保存（使えない環境でも動くように try/catch） ─────────
@@ -344,14 +344,111 @@
     }));
   }
 
+  // ───────── 壊して試す：1つのお題 = 1か所の変更 = 1つの理由 ─────────
+  const sameValue = (a, b) => String(a) === String(b) || (a !== "" && b !== "" && Number(a) === Number(b));
+  const envSpec = (l, name) => (l.env || []).find((e) => e.name === name);
+  const valueText = (l, key, val) => {
+    if (l.slots[key]) return slotText(l.slots[key], val) || "（消す）";
+    const o = envSpec(l, key).options.find((x) => String(optValue(x)) === String(val));
+    return o ? optLabel(o) : String(val);
+  };
+  const keyLabel = (l, key) => (l.slots[key] ? l.slots[key].label || key : envSpec(l, key).label);
+
+  // デフォルトから変わっている場所の一覧
+  function diffsOf(l, s) {
+    const out = [];
+    Object.entries(l.slots).forEach(([k, slot]) => {
+      if (!sameValue(s.values[k], slot.default)) out.push({ key: k, kind: "slot", from: slot.default, to: s.values[k] });
+    });
+    (l.env || []).forEach((e) => {
+      if (!sameValue(s.env[e.name], e.default)) out.push({ key: e.name, kind: "env", from: e.default, to: s.env[e.name] });
+    });
+    return out;
+  }
+  function matchExperiment(l, diffs) {
+    return l.experiments.findIndex((x) => {
+      const keys = Object.keys(x.set);
+      return keys.length === diffs.length && diffs.every((d) => d.key in x.set && sameValue(x.set[d.key], d.to));
+    });
+  }
+  const diffHtml = (l, d) =>
+    `<span class="diff"><span class="diff-kind">${d.kind === "slot" ? (l.inspector ? "設定" : "コード") : "条件"}</span>${esc(keyLabel(l, d.key))}：<code class="from">${esc(valueText(l, d.key, d.from))}</code> → <code class="to">${esc(valueText(l, d.key, d.to))}</code></span>`;
+
   function renderExperiments() {
     const l = lesson(), s = state();
     el.experiments.hidden = step !== 1;
     if (step !== 1) return;
-    el.expList.innerHTML = l.experiments.map((x, i) =>
-      `<li class="${s.exp[i] ? "done" : ""}"><span class="check">${s.exp[i] ? "✓" : ""}</span><span>${esc(x.text)}</span></li>`
-    ).join("");
+    const active = matchExperiment(l, diffsOf(l, s));
+    el.expList.innerHTML = l.experiments.map((x, i) => {
+      const changes = Object.entries(x.set).map(([k, v]) => diffHtml(l, { key: k, kind: l.slots[k] ? "slot" : "env", from: l.slots[k] ? l.slots[k].default : envSpec(l, k).default, to: v })).join("");
+      return `<li><button type="button" class="exp-card${s.exp[i] ? " done" : ""}${i === active ? " active" : ""}" data-exp="${i}" aria-pressed="${i === active}">
+        <span class="check">${s.exp[i] ? "✓" : i + 1}</span>
+        <span class="exp-body"><span class="exp-text">${esc(x.text)}</span><span class="exp-diffs">${changes}</span></span>
+      </button></li>`;
+    }).join("");
     el.expCount.textContent = `${s.exp.filter(Boolean).length} / ${l.experiments.length}`;
+    el.expList.querySelectorAll(".exp-card").forEach((b) => b.addEventListener("click", () => applyExperiment(Number(b.dataset.exp))));
+  }
+
+  // お題を選ぶと、ほかの変更はすべて戻し、その1か所だけを壊す
+  function applyExperiment(i) {
+    const l = lesson(), s = state(), x = l.experiments[i];
+    s.values = defaults(l.slots);
+    s.env = envDefaults(l);
+    Object.entries(x.set).forEach(([k, v]) => { if (l.slots[k]) s.values[k] = String(v); else s.env[k] = String(v); });
+    save();
+    renderCode();
+    renderEnv();
+    renderExperiments();
+    updateChangeState();
+    el.breakNote.hidden = true;
+    const targets = Object.keys(x.set).flatMap((k) => [...document.querySelectorAll(`#codePane [data-slot="${k}"], #codePane [data-add="${k}"], #env-${k}`)]);
+    targets.forEach((t) => { t.classList.remove("flash"); void t.offsetWidth; t.classList.add("flash"); });
+    if (targets[0]) targets[0].scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // 2か所以上を同時に変えていたら警告する（お題として用意した組み合わせは除く）
+  function updateChangeState() {
+    const l = lesson(), s = state();
+    if (step !== 1) { el.multiWarn.hidden = true; return; }
+    const diffs = diffsOf(l, s);
+    const match = matchExperiment(l, diffs);
+    const multi = diffs.length > 1 && match < 0;
+    el.multiWarn.hidden = !multi;
+    if (multi) {
+      el.multiWarn.innerHTML = `<span><b>${diffs.length} か所を同時に変えています。</b>このまま実行すると、どの変更が何を起こしたのか切り分けられません。</span><button type="button" class="btn" data-reset>元に戻す</button>`;
+      el.multiWarn.querySelector("[data-reset]").addEventListener("click", () => el.resetBtn.click());
+    }
+    el.expList.querySelectorAll(".exp-card").forEach((b) => {
+      const on = Number(b.dataset.exp) === match;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+  }
+
+  // 実行結果の横に「壊したところ → 見るところ → なぜ？」を出す
+  function renderBreakNote(diffs, match) {
+    const l = lesson();
+    el.breakNote.hidden = false;
+    if (!diffs.length) {
+      el.breakNote.className = "break-note";
+      el.breakNote.innerHTML = `<p class="bn-empty">まだ何も壊していません。お題を選ぶか、紫の場所を書き換えてから実行しよう。</p>`;
+      return;
+    }
+    const rows = `<div class="bn-row"><span class="bn-tag">壊したところ</span><span class="bn-val">${diffs.map((d) => diffHtml(l, d)).join("")}</span></div>`;
+    if (match >= 0) {
+      const x = l.experiments[match];
+      el.breakNote.className = "break-note";
+      el.breakNote.innerHTML = `${rows}
+        <div class="bn-row"><span class="bn-tag">見るところ</span><span class="bn-val">${esc(x.look)}</span></div>
+        <details class="bn-why"><summary>なぜ？（結果を見て、理由を予想してから開こう）</summary><p>${esc(x.why)}</p></details>`;
+    } else if (diffs.length > 1) {
+      el.breakNote.className = "break-note warn";
+      el.breakNote.innerHTML = `${rows}<p class="bn-msg">${diffs.length} か所を同時に変えたので、どの変更が何を起こしたのか切り分けられません。1か所ずつ試そう。</p>`;
+    } else {
+      el.breakNote.className = "break-note";
+      el.breakNote.innerHTML = `${rows}<p class="bn-msg">お題にない壊し方です。何が起きたのか、自分の言葉で説明してみよう。</p>`;
+    }
   }
 
   // ───────── 言葉にする ─────────
@@ -434,10 +531,12 @@
     el.runBtn.innerHTML = step === 0 ? '▶ <span class="full">そのまま</span>実行' : '▶ <span class="full">書き換えて</span>実行';
     document.body.classList.toggle("in-play", step <= 1);
     setTab("code");
+    el.breakNote.hidden = true;
     if (step <= 1) {
       renderCode();
       renderEnv();
       renderExperiments();
+      updateChangeState();
       stopRun();
       clearConsole();
       log(step === 0 ? "▶ 実行 を押すと、Unity で再生したときの動きを再現します。" : "書き換えたら ▶ 実行。何が変わったかを Console と Scene で確かめよう。", "info");
@@ -472,11 +571,11 @@
   function log(text, type = "info") {
     const row = document.createElement("div");
     row.className = `log log-${type}`;
-    const icon = { info: "ℹ", error: "⛔", warn: "⚠", ok: "✔", frame: "·" }[type] || "";
+    const icon = { info: "ℹ", error: "⛔", warn: "⚠", ok: "✔", frame: "·", change: "✎" }[type] || "";
     row.innerHTML = `<span class="log-icon">${icon}</span><span>${esc(text)}</span>`;
     el.console.appendChild(row);
     el.console.scrollTop = el.console.scrollHeight;
-    if (isMobile() && !document.body.classList.contains("tab-result") && type !== "info") el.resultDot.hidden = false;
+    if (isMobile() && !document.body.classList.contains("tab-result") && type !== "info" && type !== "change") el.resultDot.hidden = false;
   }
 
   // ───────── 実行 ─────────
@@ -501,6 +600,16 @@
 
     if (isMobile()) setTab("result");
     else el.resultDot.hidden = true;
+    // 壊して試すステップでは、今回変えた場所を最初に示す
+    let match = -1;
+    if (step === 1) {
+      const diffs = diffsOf(l, s);
+      match = matchExperiment(l, diffs);
+      renderBreakNote(diffs, match);
+      diffs.forEach((d) => log(`変更  ${keyLabel(l, d.key)}：${valueText(l, d.key, d.from)} → ${valueText(l, d.key, d.to)}`, "change"));
+    } else {
+      el.breakNote.hidden = true;
+    }
     log("Compiling...", "info");
     const result = errors.length ? { errors } : l.simulate(values, env, G);
     if (result.errors) {
@@ -508,13 +617,13 @@
         result.errors.forEach((e) => log(e, "error"));
         log("エラーがあると再生できない。直してからもう一度実行しよう", "warn");
         scene.error();
-        if (step === 1) checkExperiments(values, env);
+        if (step === 1) checkExperiments(match);
       }, 200));
       return;
     }
 
     log("Compile succeeded. ▶ Play", "ok");
-    if (step === 1) checkExperiments(values, env);
+    if (step === 1) checkExperiments(match);
     scene.play(result);
     result.logs.forEach(([t, text, type]) => timers.push(setTimeout(() => log(text, type || "info"), 150 + t * 1000)));
 
@@ -522,16 +631,13 @@
   }
 
   // 壊して試すお題の達成判定（コンパイルエラーになる壊し方も「試した」に数える）
-  function checkExperiments(values, env) {
+  function checkExperiments(match) {
     const l = lesson(), s = state();
-    let newly = 0;
-    l.experiments.forEach((x, i) => {
-      if (!s.exp[i] && x.done(values, env)) { s.exp[i] = true; newly++; }
-    });
-    if (newly) {
+    if (match >= 0 && !s.exp[match]) {
+      s.exp[match] = true;
       save();
       renderExperiments();
-      log(`お題を ${newly} 個クリア。何が変わったか、言葉にできそう？`, "ok");
+      log(`お題「${l.experiments[match].text}」をクリア`, "ok");
     }
     if (s.exp.filter(Boolean).length >= 1) unlock(2);
   }
@@ -748,6 +854,7 @@
   el.noteCopyBtn.addEventListener("click", () => copyText(`【${lesson().title}】\n${el.noteInput.value}`, el.noteCopyBtn));
   el.toExplainBtn.addEventListener("click", () => goStep(3));
   el.nextLessonBtn.addEventListener("click", () => goLesson(current + 1));
+  ["input", "change", "click"].forEach((type) => el.playArea.addEventListener(type, () => requestAnimationFrame(updateChangeState)));
   el.tabCode.addEventListener("click", () => setTab("code"));
   el.tabResult.addEventListener("click", () => setTab("result"));
   mq.addEventListener("change", () => { if (step <= 1) renderCode(); });

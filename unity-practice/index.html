@@ -36,8 +36,11 @@
         <div id="codePane" class="pane">
           <section id="experiments" class="experiments" hidden>
             <h3>壊して試すお題 <span id="expCount" class="count"></span></h3>
+            <p class="exp-hint">お題を選ぶと、その1か所だけが壊れた状態になる。どうなるか予想してから ▶ 実行 しよう。</p>
             <ul id="expList"></ul>
           </section>
+
+          <div id="multiWarn" class="multi-warn" hidden></div>
 
           <section class="editor">
             <div class="editor-tab"><span id="fileName">Script.cs</span></div>
@@ -58,6 +61,7 @@
         </div>
 
         <div id="resultPane" class="pane">
+          <section id="breakNote" class="break-note" hidden aria-live="polite"></section>
           <section class="output">
             <div class="panel">
               <div class="panel-title">Scene</div>

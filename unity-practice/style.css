@@ -209,11 +209,54 @@ select.slot { padding: 0 2px; cursor: pointer; }
 .experiments { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; }
 .experiments h3 { margin: 0 0 6px; font-size: .95rem; }
 .experiments .count { color: var(--muted); font-weight: normal; font-size: .85rem; margin-left: 6px; }
-.experiments ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.experiments li { display: flex; gap: 10px; align-items: flex-start; }
-.experiments .check { flex: none; width: 20px; height: 20px; margin-top: 3px; border-radius: 4px; border: 1px solid var(--border); display: grid; place-items: center; font-size: .75rem; }
-.experiments li.done .check { background: var(--ok); border-color: var(--ok); color: #fff; }
-.experiments li.done span:last-child { color: var(--muted); }
+.experiments ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.exp-hint { margin: 0 0 8px; font-size: .85rem; color: var(--muted); }
+.exp-card {
+  width: 100%; display: flex; gap: 10px; align-items: flex-start; text-align: left;
+  font: inherit; color: var(--text); cursor: pointer;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+}
+.exp-card:hover { border-color: var(--slot); }
+.exp-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.exp-card.active { border-color: var(--slot); box-shadow: inset 4px 0 0 var(--slot); background: color-mix(in srgb, var(--slot) 8%, var(--bg)); }
+.exp-card .check { flex: none; width: 22px; height: 22px; margin-top: 1px; border-radius: 50%; border: 1px solid var(--border); display: grid; place-items: center; font-size: .75rem; color: var(--muted); }
+.exp-card.done .check { background: var(--ok); border-color: var(--ok); color: #fff; }
+.exp-body { display: grid; gap: 3px; min-width: 0; }
+.exp-text { font-weight: 600; }
+.exp-diffs { display: flex; flex-direction: column; gap: 2px; }
+.diff { font-size: .82rem; color: var(--muted); overflow-wrap: anywhere; }
+.diff code { font-size: .8rem; }
+.diff .from { text-decoration: line-through; opacity: .75; }
+.diff .to { color: var(--text); background: color-mix(in srgb, var(--slot) 20%, transparent); }
+.diff-kind { display: inline-block; font-size: .7rem; letter-spacing: .04em; padding: 0 5px; margin-right: 6px; border-radius: 3px; border: 1px solid var(--border); color: var(--muted); }
+
+/* 2か所以上を同時に変えたときの警告 */
+.multi-warn {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; justify-content: space-between;
+  margin-bottom: 10px; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--surface)); font-size: .9rem;
+}
+
+/* 実行結果の横に出す「壊したところ → 見るところ → なぜ？」 */
+.break-note {
+  display: grid; gap: 8px; margin-bottom: 12px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--slot); border-radius: 0 8px 8px 0;
+}
+.break-note.warn { border-left-color: var(--warn); }
+.bn-row { display: grid; grid-template-columns: 7em minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.bn-tag { font-size: .78rem; font-weight: 700; color: var(--muted); letter-spacing: .04em; }
+.bn-val { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bn-val .diff { font-size: .9rem; color: var(--text); }
+.bn-why summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .92rem; }
+.bn-why p { margin: 6px 0 0; max-width: 70ch; }
+.bn-msg, .bn-empty { margin: 0; font-size: .9rem; color: var(--muted); }
+.break-note.warn .bn-msg { color: var(--warn); font-weight: 600; }
+.log-change { color: var(--slot); }
+
+/* お題を選んだときに、壊した場所を光らせる */
+@keyframes slot-flash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--slot) 60%, transparent); } }
+.flash { animation: slot-flash .9s ease-out 2; }
+@media (prefers-reduced-motion: reduce) { .flash { animation: none; outline: 2px solid var(--slot); } }
 
 /* ── 言葉にする ── */
 .verbal { margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; }
@@ -464,7 +507,8 @@ input.u-slot:focus, select.u-slot:focus { border-style: solid; box-shadow: 0 0 0
   .env select { padding: 8px; }
 
   .experiments { margin-bottom: 10px; }
-  .experiments li { font-size: .9rem; }
+  .exp-card { padding: 10px; }
+  .bn-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .console { height: 200px; }
   .verbal { padding: 12px 14px; }
   .verbal-text { font-size: 1rem; line-height: 2.4; }
